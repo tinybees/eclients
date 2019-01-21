@@ -8,9 +8,9 @@
 可配置消息模块
 """
 
-__all__ = ("message", "msg_codes")
+__all__ = ("mysql_msg", "mongo_msg", "http_msg")
 
-message = {
+mysql_msg = {
     # mysql 从1到100
     1: {"msg_code": 1, "msg_zh": "MySQL插入数据失败.", "msg_en": "MySQL insert data failed.",
         "description": "MySQL插入数据时最终失败的提示"},
@@ -24,7 +24,9 @@ message = {
         "description": "MySQL查找多条数据时最终失败的提示"},
     6: {"msg_code": 6, "msg_zh": "MySQL执行SQL失败.", "msg_en": "MySQL execute sql failed.",
         "description": "MySQL执行SQL失败的提示"},
+}
 
+mongo_msg = {
     # mongo 从100到200
     100: {"msg_code": 100, "msg_zh": "MongoDB插入数据失败.", "msg_en": "MongoDB insert data failed.",
           "description": "MongoDB插入数据时最终失败的提示"},
@@ -38,25 +40,10 @@ message = {
           "description": "MongoDB查找多条数据时最终失败的提示"},
     105: {"msg_code": 105, "msg_zh": "MongoDB聚合查询数据失败.", "msg_en": "MongoDB aggregate query data failed.",
           "description": "MongoDB聚合查询数据时最终失败的提示"},
+}
 
+http_msg = {
     # request 从200到300
     200: {"msg_code": 200, "msg_zh": "获取API响应结果失败.", "msg_en": "Failed to get API response result.",
           "description": "async request 获取API响应结果失败时的提示"},
-    201: {"msg_code": 201, "msg_zh": "请求body校验错误,请检查.", "msg_en": "Request body validation error, please check!",
-          "description": "marmallow校验body错误时的提示"},
-    202: {"msg_code": 202, "msg_zh": "请求body校验未知错误,请检查.",
-          "msg_en": "Request body validation unknow error, please check!",
-          "description": "marmallow校验body未知错误时的提示"},
-
 }
-
-
-def msg_codes(msg_code):
-    """
-
-    Args:
-        msg_code
-    Returns:
-
-    """
-    return message[msg_code]["msg_zh"]

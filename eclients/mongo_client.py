@@ -7,6 +7,7 @@
 @time: 18-12-25 下午3:56
 """
 
+import atexit
 from collections.abc import MutableMapping, MutableSequence
 
 import aelog
@@ -17,7 +18,8 @@ from pymongo import MongoClient as MongodbClient
 # noinspection PyPackageRequirements
 from pymongo.errors import ConnectionFailure, DuplicateKeyError, InvalidName, PyMongoError
 
-from .err_msg import msg_codes
+from eclients.utils import verify_message
+from .err_msg import mongo_msg
 from .exceptions import FuncArgsError, HttpError, MongoDuplicateKeyError, MongoError, MongoInvalidNameError
 
 __all__ = ("MongodbClient",)
@@ -29,7 +31,7 @@ class MongoClient(object):
     """
 
     def __init__(self, app=None, *, username="mongo", passwd=None, host="127.0.0.1", port=27017, dbname=None,
-                 pool_size=50):
+                 pool_size=50, **kwargs):
         """
         mongo 工具类
         Args:
@@ -43,13 +45,15 @@ class MongoClient(object):
         """
         self.client = None
         self.db = None
+        self.message = None
+        self.msg_zh = None
 
         if app is not None:
             self.init_app(app, username=username, passwd=passwd, host=host, port=port, dbname=dbname,
-                          pool_size=pool_size)
+                          pool_size=pool_size, **kwargs)
 
     def init_app(self, app, *, username="mongo", passwd=None, host="127.0.0.1", port=27017, dbname=None,
-                 pool_size=50):
+                 pool_size=50, **kwargs):
         """
         mongo 实例初始化
         Args:
@@ -67,29 +71,46 @@ class MongoClient(object):
         port = app.config.get("ECLIENTS_MONGO_PORT", None) or port
         dbname = app.config.get("ECLIENTS_MONGO_DBNAME", None) or dbname
         pool_size = app.config.get("ECLIENTS_MONGO_POOL_SIZE", None) or pool_size
+        message = app.config.get("ECLIENTS_MONGO_MESSAGE", None) or kwargs.get("message")
+        use_zh = app.config.get("ECLIENTS_MONGO_MSGZH", None) or kwargs.get("use_zh", True)
 
-        try:
-            self.client = MongodbClient(host, port, maxPoolSize=pool_size, username=username, password=passwd)
-            self.db = self.client.get_database(name=dbname)
-        except ConnectionFailure as e:
-            aelog.exception(f"Mongo connection failed host={host} port={port} error:{str(e)}")
-            raise MongoError(f"Mongo connection failed host={host} port={port} error:{str(e)}")
-        except InvalidName as e:
-            aelog.exception(f"Invalid mongo db name {dbname} {str(e)}")
-            raise MongoInvalidNameError(f"Invalid mongo db name {dbname} {str(e)}")
-        except PyMongoError as err:
-            aelog.exception(f"Mongo DB init failed! error: {str(err)}")
-            raise MongoError("Mongo DB init failed!") from err
+        passwd = passwd if passwd is None else str(passwd)
+        self.message = verify_message(mongo_msg, message)
+        self.msg_zh = "msg_zh" if use_zh else "msg_en"
 
-    def close(self, ):
-        """
-        释放mongo连接池所有连接
-        Args:
+        @app.before_first_request
+        def open_connection():
+            """
 
-        Returns:
+            Args:
 
-        """
-        self.client.close()
+            Returns:
+
+            """
+
+            try:
+                self.client = MongodbClient(host, port, maxPoolSize=pool_size, username=username, password=passwd)
+                self.db = self.client.get_database(name=dbname)
+            except ConnectionFailure as e:
+                aelog.exception(f"Mongo connection failed host={host} port={port} error:{str(e)}")
+                raise MongoError(f"Mongo connection failed host={host} port={port} error:{str(e)}")
+            except InvalidName as e:
+                aelog.exception(f"Invalid mongo db name {dbname} {str(e)}")
+                raise MongoInvalidNameError(f"Invalid mongo db name {dbname} {str(e)}")
+            except PyMongoError as err:
+                aelog.exception(f"Mongo DB init failed! error: {str(err)}")
+                raise MongoError("Mongo DB init failed!") from err
+
+        @atexit.register
+        def close_connection():
+            """
+            释放mongo连接池所有连接
+            Args:
+
+            Returns:
+
+            """
+            self.client.close()
 
     def _insert_document(self, name, document, insert_one=True):
         """
@@ -112,7 +133,7 @@ class MongoClient(object):
             raise MongoDuplicateKeyError("Duplicate key error, {}".format(e))
         except PyMongoError as err:
             aelog.exception("Insert one document failed, {}".format(err))
-            raise HttpError(400, message=msg_codes(100))
+            raise HttpError(400, message=mongo_msg[100][self.msg_zh])
         else:
             return str(result.inserted_id) if insert_one else (str(val) for val in result.inserted_ids)
 
@@ -143,7 +164,7 @@ class MongoClient(object):
             raise MongoInvalidNameError("Invalid collention name {} {}".format(name, e))
         except PyMongoError as err:
             aelog.exception("Find one document failed, {}".format(err))
-            raise HttpError(400, message=msg_codes(103))
+            raise HttpError(400, message=mongo_msg[103][self.msg_zh])
         else:
             if find_data and find_data.get("_id", None) is not None:
                 find_data["id"] = str(find_data.pop("_id"))
@@ -174,7 +195,7 @@ class MongoClient(object):
             raise MongoInvalidNameError("Invalid collention name {} {}".format(name, e))
         except PyMongoError as err:
             aelog.exception("Find many documents failed, {}".format(err))
-            raise HttpError(400, message=msg_codes(104))
+            raise HttpError(400, message=mongo_msg[104][self.msg_zh])
         else:
             return find_data
 
@@ -193,7 +214,7 @@ class MongoClient(object):
             raise MongoInvalidNameError("Invalid collention name {} {}".format(name, e))
         except PyMongoError as err:
             aelog.exception("Find many documents failed, {}".format(err))
-            raise HttpError(400, message=msg_codes(104))
+            raise HttpError(400, message=mongo_msg[104][self.msg_zh])
 
     def _update_document(self, name, query_key: dict, update_data: dict, upsert=False, update_one=True):
         """
@@ -221,7 +242,7 @@ class MongoClient(object):
             raise MongoDuplicateKeyError("Duplicate key error, {}".format(e))
         except PyMongoError as err:
             aelog.exception("Update documents failed, {}".format(err))
-            raise HttpError(400, message=msg_codes(101))
+            raise HttpError(400, message=mongo_msg[101][self.msg_zh])
         else:
             return {"matched_count": result.matched_count, "modified_count": result.modified_count,
                     "upserted_id": str(result.upserted_id) if result.upserted_id else None}
@@ -258,7 +279,7 @@ class MongoClient(object):
             raise MongoInvalidNameError("Invalid collention name {} {}".format(name, e))
         except PyMongoError as err:
             aelog.exception("Delete documents failed, {}".format(err))
-            raise HttpError(400, message=msg_codes(102))
+            raise HttpError(400, message=mongo_msg[102][self.msg_zh])
         else:
             return result.deleted_count
 
@@ -292,7 +313,7 @@ class MongoClient(object):
             raise MongoInvalidNameError("Invalid collention name {} {}".format(name, e))
         except PyMongoError as err:
             aelog.exception("Aggregate documents failed, {}".format(err))
-            raise HttpError(400, message=msg_codes(105))
+            raise HttpError(400, message=mongo_msg[105][self.msg_zh])
         else:
             return result
 

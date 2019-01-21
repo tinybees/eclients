@@ -7,10 +7,10 @@
 @time: 18-12-25 下午2:08
 """
 
-__all__ = ("ClientError", "ClientResponseError", "ClientConnectionError", "HttpError", "RedisSessionError",
-           "RedisConnectError", "EmailError", "ConfigError", "MysqlDuplicateKeyError", "MysqlError",
-           "MysqlInvalidNameError", "FuncArgsError", "Error", "PermissionDeniedError", "QueryArgsError",
-           "MongoError", "MongoDuplicateKeyError", "MongoInvalidNameError", "CommandArgsError")
+__all__ = ("ClientError", "ClientResponseError", "ClientConnectionError", "HttpError", "RedisClientError",
+           "RedisConnectError", "MysqlDuplicateKeyError", "MysqlError", "MysqlInvalidNameError", "FuncArgsError",
+           "Error", "PermissionDeniedError", "QueryArgsError", "MongoError", "MongoDuplicateKeyError",
+           "MongoInvalidNameError", "CommandArgsError", "EmailError", "ConfigError")
 
 
 class Error(Exception):
@@ -80,12 +80,13 @@ class HttpError(Error):
     主要处理http 错误,从接口返回
     """
 
-    def __init__(self, status_code, *, message=None):
+    def __init__(self, status_code, *, message=None, error=None):
         self.status_code = status_code
         self.message = message
+        self.error = error
 
 
-class RedisSessionError(Error):
+class RedisClientError(Error):
     """
     主要处理redis的error
     """
@@ -106,7 +107,7 @@ class RedisSessionError(Error):
     __repr__ = __str__
 
 
-class RedisConnectError(RedisSessionError):
+class RedisConnectError(RedisClientError):
     """
     主要处理redis的connect error
     """
