@@ -13,6 +13,7 @@ from requests.exceptions import ConnectTimeout, ConnectionError, HTTPError, Requ
 
 from eclients.err_msg import http_msg
 from eclients.utils import verify_message
+from .decorators import singleton
 from .exceptions import ClientConnectionError, ClientError, ClientResponseError
 
 __all__ = ("HttpClient", "Response")
@@ -48,6 +49,7 @@ class Response(object):
         return self.resp_body
 
 
+@singleton
 class HttpClient(object):
     """
     基于requests的同步封装
@@ -102,6 +104,34 @@ class HttpClient(object):
 
             """
             self.session = sync_requests.Session()
+
+        @atexit.register
+        def close_connection():
+            """
+            释放session连接池所有连接
+            Args:
+
+            Returns:
+
+            """
+            self.session.close()
+
+    def init_session(self, *, timeout=5 * 60, verify_ssl=True, message=None, use_zh=True):
+        """
+        基于aiohttp的异步封装
+        Args:
+            timeout:request timeout
+            verify_ssl:verify ssl
+            message: 提示消息
+            use_zh: 消息提示是否使用中文，默认中文
+        Returns:
+
+        """
+        self.timeout = timeout
+        self.verify_ssl = verify_ssl
+        self.message = verify_message(http_msg, message)
+        self.msg_zh = "msg_zh" if use_zh else "msg_en"
+        self.session = sync_requests.Session()
 
         @atexit.register
         def close_connection():

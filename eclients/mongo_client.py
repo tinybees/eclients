@@ -112,6 +112,49 @@ class MongoClient(object):
             """
             self.client.close()
 
+    def init_engine(self, *, username="mongo", passwd=None, host="127.0.0.1", port=27017, dbname=None,
+                    pool_size=50, **kwargs):
+        """
+        mongo 实例初始化
+        Args:
+            host:mongo host
+            port:mongo port
+            dbname: database name
+            username: mongo user
+            passwd: mongo password
+            pool_size: mongo pool size
+        """
+        message = kwargs.get("message")
+        use_zh = kwargs.get("use_zh", True)
+
+        passwd = passwd if passwd is None else str(passwd)
+        self.message = verify_message(mongo_msg, message)
+        self.msg_zh = "msg_zh" if use_zh else "msg_en"
+
+        try:
+            self.client = MongodbClient(host, port, maxPoolSize=pool_size, username=username, password=passwd)
+            self.db = self.client.get_database(name=dbname)
+        except ConnectionFailure as e:
+            aelog.exception(f"Mongo connection failed host={host} port={port} error:{str(e)}")
+            raise MongoError(f"Mongo connection failed host={host} port={port} error:{str(e)}")
+        except InvalidName as e:
+            aelog.exception(f"Invalid mongo db name {dbname} {str(e)}")
+            raise MongoInvalidNameError(f"Invalid mongo db name {dbname} {str(e)}")
+        except PyMongoError as err:
+            aelog.exception(f"Mongo DB init failed! error: {str(err)}")
+            raise MongoError("Mongo DB init failed!") from err
+
+        @atexit.register
+        def close_connection():
+            """
+            释放mongo连接池所有连接
+            Args:
+
+            Returns:
+
+            """
+            self.client.close()
+
     def _insert_document(self, name, document, insert_one=True):
         """
         插入一个单独的文档
