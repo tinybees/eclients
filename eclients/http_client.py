@@ -69,13 +69,15 @@ class HttpClient(object):
         self.session = None
         self.timeout = timeout
         self.verify_ssl = verify_ssl
-        self.message = None
+        self.message = message or {}
+        self.use_zh = use_zh
         self.msg_zh = None
 
         if app is not None:
-            self.init_app(app, timeout=timeout, verify_ssl=verify_ssl, message=message, use_zh=use_zh)
+            self.init_app(app, timeout=self.timeout, verify_ssl=self.verify_ssl, message=self.message,
+                          use_zh=self.use_zh)
 
-    def init_app(self, app, *, timeout=5 * 60, verify_ssl=True, message=None, use_zh=True):
+    def init_app(self, app, *, timeout=None, verify_ssl=None, message=None, use_zh=None):
         """
         基于aiohttp的异步封装
         Args:
@@ -87,10 +89,11 @@ class HttpClient(object):
         Returns:
 
         """
-        self.timeout = app.config.get("ECLIENTS_HTTP_TIMEOUT", None) or timeout
-        self.verify_ssl = app.config.get("ECLIENTS_HTTP_VERIFYSSL", None) or verify_ssl
-        message = app.config.get("ECLIENTS_HTTP_MESSAGE", None) or message
-        use_zh = app.config.get("ECLIENTS_HTTP_MSGZH", None) or use_zh
+        self.timeout = timeout or app.config.get("ECLIENTS_HTTP_TIMEOUT", None) or self.timeout
+        self.verify_ssl = verify_ssl or app.config.get("ECLIENTS_HTTP_VERIFYSSL", None) or self.verify_ssl
+        message = message or app.config.get("ECLIENTS_HTTP_MESSAGE", None) or self.message
+        use_zh = use_zh or app.config.get("ECLIENTS_HTTP_MSGZH", None) or self.use_zh
+
         self.message = verify_message(http_msg, message)
         self.msg_zh = "msg_zh" if use_zh else "msg_en"
 
@@ -116,7 +119,7 @@ class HttpClient(object):
             """
             self.session.close()
 
-    def init_session(self, *, timeout=5 * 60, verify_ssl=True, message=None, use_zh=True):
+    def init_session(self, *, timeout=None, verify_ssl=None, message=None, use_zh=None):
         """
         基于aiohttp的异步封装
         Args:
@@ -127,9 +130,10 @@ class HttpClient(object):
         Returns:
 
         """
-        self.timeout = timeout
-        self.verify_ssl = verify_ssl
-        self.message = verify_message(http_msg, message)
+        self.timeout = timeout or self.timeout
+        self.verify_ssl = verify_ssl or self.verify_ssl
+        use_zh = use_zh or self.use_zh
+        self.message = verify_message(http_msg, message or self.message)
         self.msg_zh = "msg_zh" if use_zh else "msg_en"
         self.session = sync_requests.Session()
 
