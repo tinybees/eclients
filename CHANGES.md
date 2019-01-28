@@ -3,6 +3,11 @@
 ###[1.0.0b4] - 2019-1-28
 
 #### Added 
+- 增加基于flask-sqlalchemy的mysqlclient封装
+
+###[1.0.0b4] - 2019-1-28
+
+#### Added 
 - 添加schema_validate装饰器用于校验schema
 - 增加schema message 使用的消息
 #### Changed 

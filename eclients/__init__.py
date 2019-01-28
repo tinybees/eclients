@@ -9,5 +9,6 @@
 
 from .mongo_client import *
 from .http_client import *
+from .mysql_client import *
 
-__version__ = "1.0.0b4"
+__version__ = "1.0.0b5"
