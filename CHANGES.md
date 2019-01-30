@@ -1,6 +1,11 @@
 ## aeclients Changelog
 
-###[1.0.0b4] - 2019-1-28
+###[1.0.0b6] - 2019-1-28
+
+#### Added 
+- 修改基于flask-sqlalchemy的mysqlclient封装的实现，由组合变继承
+
+###[1.0.0b5] - 2019-1-28
 
 #### Added 
 - 增加基于flask-sqlalchemy的mysqlclient封装
