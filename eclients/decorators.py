@@ -71,7 +71,7 @@ def schema_validate(schema_obj, required: (tuple, list) = tuple(), is_extends=Tr
         """
 
         @wraps(func)
-        async def _wrapper(*args, **kwargs):
+        def _wrapper(*args, **kwargs):
             """
             校验post的json格式和类型是否正确
             """
@@ -101,7 +101,7 @@ def schema_validate(schema_obj, required: (tuple, list) = tuple(), is_extends=Tr
                 raise HttpError(500, message=schema_message[202][msg_zh], error=str(err))
             else:
                 g.json = valid_data
-            return await func(*args, **kwargs)
+            return func(*args, **kwargs)
 
         return _wrapper
 
