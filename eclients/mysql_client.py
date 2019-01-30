@@ -19,7 +19,7 @@ from .utils import verify_message
 __all__ = ("MysqlClient",)
 
 
-class MysqlClient(object):
+class MysqlClient(SQLAlchemy):
     """
     MySQL同步操作指南
     """
@@ -37,8 +37,6 @@ class MysqlClient(object):
             passwd: mysql password
             pool_size: mysql pool size
         """
-
-        self.db = SQLAlchemy()
         self.username = username
         self.passwd = passwd
         self.host = host
@@ -49,12 +47,9 @@ class MysqlClient(object):
         self.use_zh = kwargs.get("use_zh", True)
         self.msg_zh = None
 
-        if app is not None:
-            self.init_app(app, username=self.username, passwd=self.passwd, host=self.host, port=self.port,
-                          dbname=self.dbname, pool_size=self.pool_size, **kwargs)
+        super().__init__(app)
 
-    def init_app(self, app, *, username=None, passwd=None, host=None, port=None, dbname=None,
-                 pool_size=None, **kwargs):
+    def init_app(self, app, username=None, passwd=None, host=None, port=None, dbname=None, pool_size=None, **kwargs):
         """
         mysql 实例初始化
         Args:
@@ -88,7 +83,7 @@ class MysqlClient(object):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         app.config['SQLALCHEMY_POOL_RECYCLE'] = 3600
 
-        self.db.init_app(app)
+        super().init_app(app)
 
     def init_engine(self, *, username="root", passwd=None, host="127.0.0.1", port=3306, dbname=None,
                     pool_size=50, **kwargs):
@@ -128,19 +123,20 @@ class MysqlClient(object):
 
         """
         try:
-            yield self.db
-            self.db.session.commit()
+            yield self
+            self.session.commit()
         except IntegrityError as e:
-            self.db.session.rollback()
+            self.session.rollback()
             if "Duplicate" in str(e):
                 raise MysqlDuplicateKeyError(e)
             else:
                 raise MysqlError(e)
         except DatabaseError as e:
+            self.session.rollback()
             aelog.exception(e)
             raise MysqlError(e)
         except Exception as e:
-            self.db.session.rollback()
+            self.session.rollback()
             aelog.exception(e)
             raise HttpError(500, message=self.message[1][self.msg_zh], error=e)
 
@@ -154,19 +150,20 @@ class MysqlClient(object):
 
         """
         try:
-            yield self.db
-            self.db.session.commit()
+            yield self
+            self.session.commit()
         except IntegrityError as e:
-            self.db.session.rollback()
+            self.session.rollback()
             if "Duplicate" in str(e):
                 raise MysqlDuplicateKeyError(e)
             else:
                 raise MysqlError(e)
         except DatabaseError as e:
+            self.session.rollback()
             aelog.exception(e)
             raise MysqlError(e)
         except Exception as e:
-            self.db.session.rollback()
+            self.session.rollback()
             aelog.exception(e)
             raise HttpError(500, message=self.message[2][self.msg_zh], error=e)
 
@@ -180,13 +177,14 @@ class MysqlClient(object):
 
         """
         try:
-            yield self.db
-            self.db.session.commit()
+            yield self
+            self.session.commit()
         except DatabaseError as e:
+            self.session.rollback()
             aelog.exception(e)
             raise MysqlError(e)
         except Exception as e:
-            self.db.session.rollback()
+            self.session.rollback()
             aelog.exception(e)
             raise HttpError(500, message=self.message[3][self.msg_zh], error=e)
 
@@ -199,19 +197,20 @@ class MysqlClient(object):
             不确定执行的是什么查询，直接返回ResultProxy实例
         """
         try:
-            cursor = self.db.session.execute(query)
-            self.db.session.commit()
+            cursor = self.session.execute(query)
+            self.session.commit()
         except IntegrityError as e:
-            self.db.session.rollback()
+            self.session.rollback()
             if "Duplicate" in str(e):
                 raise MysqlDuplicateKeyError(e)
             else:
                 raise MysqlError(e)
         except DatabaseError as e:
+            self.session.rollback()
             aelog.exception(e)
             raise MysqlError(e)
         except Exception as e:
-            self.db.session.rollback()
+            self.session.rollback()
             aelog.exception(e)
             raise HttpError(500, message=self.message[2][self.msg_zh], error=e)
         else:
