@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b12] - 2019-1-31
+
+#### Changed 
+- 修改schema装饰器的实现
+
 ###[1.0.0b11] - 2019-1-31
 
 #### Changed 
