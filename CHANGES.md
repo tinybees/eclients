@@ -1,15 +1,20 @@
 ## aeclients Changelog
 
-###[1.0.0b7] - 2019-1-28
+###[1.0.0b9] - 2019-1-31
+
+#### Added 
+- 修改mysql client实现，删除init engine方法
+
+###[1.0.0b8] - 2019-1-31
 
 #### Added 
 - 修改mysql client中的init engine实现，增加脚本中使用的功能
-###[1.0.0b6] - 2019-1-28
+###[1.0.0b6] - 2019-1-30
 
 #### Added 
 - 修改基于flask-sqlalchemy的mysqlclient封装的实现，由组合变继承
 
-###[1.0.0b5] - 2019-1-28
+###[1.0.0b5] - 2019-1-29
 
 #### Added 
 - 增加基于flask-sqlalchemy的mysqlclient封装

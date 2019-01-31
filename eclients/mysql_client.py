@@ -86,45 +86,6 @@ class MysqlClient(SQLAlchemy):
 
         super().init_app(app)
 
-    def init_engine(self, *, username="root", passwd=None, host="127.0.0.1", port=3306, dbname=None,
-                    pool_size=50, **kwargs):
-        """
-        mysql 实例初始化
-        Args:
-            host:mysql host
-            port:mysql port
-            dbname: database name
-            username: mysql user
-            passwd: mysql password
-            pool_size: mysql pool size
-
-        Returns:
-
-        """
-        from flask import Flask
-
-        username = username or self.username
-        passwd = passwd or self.passwd
-        host = host or self.host
-        port = port or self.port
-        dbname = dbname or self.dbname
-        pool_size = pool_size or self.pool_size
-        message = kwargs.get("message") or self.message
-        use_zh = kwargs.get("use_zh") or self.use_zh
-
-        passwd = passwd if passwd is None else str(passwd)
-        self.message = verify_message(mysql_msg, message)
-        self.msg_zh = "msg_zh" if use_zh else "msg_en"
-
-        self._app = Flask(__name__)
-        self._app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://{}:{}@{}:{}/{}".format(
-            username, passwd, host, port, dbname)
-        self._app.config['SQLALCHEMY_POOL_SIZE'] = pool_size
-        self._app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-        self._app.config['SQLALCHEMY_POOL_RECYCLE'] = 3600
-        
-        super().init_app(self._app)
-
     @contextmanager
     def insert_session(self, ):
         """
@@ -200,7 +161,7 @@ class MysqlClient(SQLAlchemy):
             aelog.exception(e)
             raise HttpError(500, message=self.message[3][self.msg_zh], error=e)
 
-    async def execute(self, query):
+    def execute(self, query):
         """
         插入数据，更新或者删除数据
         Args:
