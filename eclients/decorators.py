@@ -45,7 +45,6 @@ class _Singleton(type):
     """
 
     def __init__(cls, *args, **kwargs):
-        print(cls, args, kwargs)
         cls.__instance = None
         super().__init__(*args, **kwargs)
 
