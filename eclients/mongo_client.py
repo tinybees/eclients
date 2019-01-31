@@ -22,7 +22,7 @@ from eclients.utils import verify_message
 from .err_msg import mongo_msg
 from .exceptions import FuncArgsError, HttpError, MongoDuplicateKeyError, MongoError, MongoInvalidNameError
 
-__all__ = ("MongodbClient",)
+__all__ = ("MongoClient",)
 
 
 class MongoClient(object):
@@ -117,7 +117,8 @@ class MongoClient(object):
             Returns:
 
             """
-            self.client.close()
+            if self.client:
+                self.client.close()
 
     def init_engine(self, *, username=None, passwd=None, host=None, port=None, dbname=None,
                     pool_size=None, **kwargs):

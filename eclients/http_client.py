@@ -13,7 +13,7 @@ from requests.exceptions import ConnectTimeout, ConnectionError, HTTPError, Requ
 
 from eclients.err_msg import http_msg
 from eclients.utils import verify_message
-from .decorators import singleton
+from .decorators import Singleton
 from .exceptions import ClientConnectionError, ClientError, ClientResponseError
 
 __all__ = ("HttpClient", "Response")
@@ -49,8 +49,7 @@ class Response(object):
         return self.resp_body
 
 
-@singleton
-class HttpClient(object):
+class HttpClient(Singleton):
     """
     基于requests的同步封装
     """
@@ -117,7 +116,8 @@ class HttpClient(object):
             Returns:
 
             """
-            self.session.close()
+            if self.session:
+                self.session.close()
 
     def init_session(self, *, timeout=None, verify_ssl=None, message=None, use_zh=None):
         """

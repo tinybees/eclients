@@ -1,17 +1,26 @@
 ## aeclients Changelog
 
-###[1.0.0b9] - 2019-1-31
+###[1.0.0b10] - 2019-1-31
 
 #### Added 
+- 增加基于元类的单例装饰器
+
+#### Changed 
+- 修改mysql client和mongo client没有请求时停止服务会报错的问题
+- 修改http client为元类单例的子类，这样可以再次继承
+
+###[1.0.0b9] - 2019-1-31
+
+#### Changed 
 - 修改mysql client实现，删除init engine方法
 
 ###[1.0.0b8] - 2019-1-31
 
-#### Added 
+#### Changed 
 - 修改mysql client中的init engine实现，增加脚本中使用的功能
 ###[1.0.0b6] - 2019-1-30
 
-#### Added 
+#### Changed 
 - 修改基于flask-sqlalchemy的mysqlclient封装的实现，由组合变继承
 
 ###[1.0.0b5] - 2019-1-29
