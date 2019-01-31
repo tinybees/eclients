@@ -46,6 +46,7 @@ class MysqlClient(SQLAlchemy):
         self.message = kwargs.get("message", {})
         self.use_zh = kwargs.get("use_zh", True)
         self.msg_zh = None
+        self._app = None
 
         super().__init__(app)
 
@@ -100,6 +101,8 @@ class MysqlClient(SQLAlchemy):
         Returns:
 
         """
+        from flask import Flask
+
         username = username or self.username
         passwd = passwd or self.passwd
         host = host or self.host
@@ -112,6 +115,15 @@ class MysqlClient(SQLAlchemy):
         passwd = passwd if passwd is None else str(passwd)
         self.message = verify_message(mysql_msg, message)
         self.msg_zh = "msg_zh" if use_zh else "msg_en"
+
+        self._app = Flask(__name__)
+        self._app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://{}:{}@{}:{}/{}".format(
+            username, passwd, host, port, dbname)
+        self._app.config['SQLALCHEMY_POOL_SIZE'] = pool_size
+        self._app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        self._app.config['SQLALCHEMY_POOL_RECYCLE'] = 3600
+        
+        super().init_app(self._app)
 
     @contextmanager
     def insert_session(self, ):

@@ -1,5 +1,9 @@
 ## aeclients Changelog
 
+###[1.0.0b7] - 2019-1-28
+
+#### Added 
+- 修改mysql client中的init engine实现，增加脚本中使用的功能
 ###[1.0.0b6] - 2019-1-28
 
 #### Added 
