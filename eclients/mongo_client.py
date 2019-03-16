@@ -285,9 +285,6 @@ class MongoClient(object):
         Returns:
             返回匹配的数量和修改数量的dict, eg:{"matched_count": 1, "modified_count": 1, "upserted_id":"f"}
         """
-        # $set用的比较多，这里默认做个封装
-        if update_data and ("$" not in list(update_data.keys())[0]):
-            update_data = {"$set": update_data}
         try:
             if update_one:
                 result = self.db.get_collection(name).update_one(query_key, update_data, upsert=upsert)
@@ -374,6 +371,66 @@ class MongoClient(object):
         else:
             return result
 
+    @staticmethod
+    def _update_update_data(update_data):
+        """
+        处理update data
+        Args:
+            update_data: 需要更新的文档值
+        Returns:
+            返回处理后的update data
+        """
+
+        # $set用的比较多，这里默认做个封装
+        if len(update_data) > 1:
+            update_data = {"$set": update_data}
+        else:
+            key, val = update_data.popitem()
+            update_data = {"$set" if "$" not in key else key: val}
+        return update_data
+
+    @staticmethod
+    def _update_query_key(query_key):
+        """
+        更新查询的query
+        Args:
+            query_key: 查询document的过滤条件
+        Returns:
+            返回处理后的query key
+        """
+        query_key = dict(query_key) if query_key else {}
+        try:
+            for key, val in query_key.items():
+                if isinstance(val, MutableMapping):
+                    if key != "id":
+                        query_key[key] = {key if "".startswith("$") else f"${key}": val for key, val in val.items()}
+                    else:
+                        query_key["_id"] = {
+                            key if "".startswith("$") else f"${key}": [ObjectId(val) for val in val]
+                            if "in" in key else val for key, val in query_key.pop(key).items()}
+                else:
+                    if key == "id":
+                        query_key["_id"] = ObjectId(query_key.pop("id"))
+        except BSONError as e:
+            raise FuncArgsError(str(e))
+        else:
+            return query_key
+
+    @staticmethod
+    def _update_doc_id(document):
+        """
+        修改文档中的_id
+        Args:
+            document: document obj
+        Returns:
+            返回处理后的document
+        """
+        if "id" in document:
+            try:
+                document["_id"] = ObjectId(document.pop("id"))
+            except BSONError as e:
+                raise FuncArgsError(str(e))
+
     def insert_documents(self, name: str, documents: dict):
         """
         批量插入文档
@@ -391,11 +448,7 @@ class MongoClient(object):
             if not isinstance(document, MutableMapping):
                 aelog.error("insert one document failed, document is not a mapping type.")
                 raise MongoError("insert one document failed, document is not a mapping type.")
-            if document and "id" in document:
-                try:
-                    document["_id"] = ObjectId(document.pop("id"))
-                except BSONError as e:
-                    raise FuncArgsError(str(e))
+            self._update_doc_id(document)
         return self._insert_documents(name, documents)
 
     def insert_document(self, name: str, document: dict):
@@ -407,17 +460,11 @@ class MongoClient(object):
         Returns:
             返回插入的转换后的_id
         """
-        document = dict(document)
-        if document and "id" in document:
-            try:
-                document["_id"] = ObjectId(document.pop("id"))
-            except BSONError as e:
-                raise FuncArgsError(str(e))
         if not isinstance(document, MutableMapping):
             aelog.error("insert one document failed, document is not a mapping type.")
             raise MongoError("insert one document failed, document is not a mapping type.")
         document = dict(document)
-        return self._insert_document(name, document)
+        return self._insert_document(name, self._update_doc_id(document))
 
     def find_document(self, name: str, query_key: dict = None, filter_key: dict = None):
         """
@@ -429,12 +476,7 @@ class MongoClient(object):
         Returns:
             返回匹配的document或者None
         """
-        if query_key and "id" in query_key:
-            try:
-                query_key["_id"] = ObjectId(query_key.pop("id"))
-            except BSONError as e:
-                raise FuncArgsError(str(e))
-        return self._find_document(name, query_key, filter_key=filter_key)
+        return self._find_document(name, self._update_query_key(query_key), filter_key=filter_key)
 
     def find_documents(self, name: str, query_key: dict = None, filter_key: dict = None, limit=0, page=1,
                        sort=None):
@@ -450,14 +492,9 @@ class MongoClient(object):
         Returns:
             返回匹配的document列表
         """
-        if query_key and "id" in query_key:
-            try:
-                query_key["_id"] = ObjectId(query_key.pop("id"))
-            except BSONError as e:
-                raise FuncArgsError(str(e))
         skip = (int(page) - 1) * int(limit)
-        return self._find_documents(name, query_key, filter_key=filter_key, limit=int(limit), skip=skip,
-                                    sort=sort)
+        return self._find_documents(name, self._update_query_key(query_key), filter_key=filter_key, limit=int(limit),
+                                    skip=skip, sort=sort)
 
     def find_count(self, name: str, query_key: dict = None):
         """
@@ -468,12 +505,7 @@ class MongoClient(object):
         Returns:
             返回匹配的document数量
         """
-        if query_key and "id" in query_key:
-            try:
-                query_key["_id"] = ObjectId(query_key.pop("id"))
-            except BSONError as e:
-                raise FuncArgsError(str(e))
-        return self._find_count(name, query_key)
+        return self._find_count(name, self._update_query_key(query_key))
 
     def update_documents(self, name: str, query_key: dict, update_data: dict, upsert: bool = False):
         """
@@ -487,12 +519,8 @@ class MongoClient(object):
             返回匹配的数量和修改数量的dict, eg:{"matched_count": 2, "modified_count": 2, "upserted_id":"f"}
         """
         update_data = dict(update_data)
-        if query_key and "id" in query_key:
-            try:
-                query_key["_id"] = ObjectId(query_key.pop("id"))
-            except BSONError as e:
-                raise FuncArgsError(str(e))
-        return self._update_documents(name, query_key, update_data, upsert=upsert)
+        return self._update_documents(name, self._update_query_key(query_key),
+                                      self._update_update_data(update_data), upsert=upsert)
 
     def update_document(self, name: str, query_key: dict, update_data: dict, upsert: bool = False):
         """
@@ -506,12 +534,8 @@ class MongoClient(object):
             返回匹配的数量和修改数量的dict, eg:{"matched_count": 1, "modified_count": 1, "upserted_id":"f"}
         """
         update_data = dict(update_data)
-        if query_key and "id" in query_key:
-            try:
-                query_key["_id"] = ObjectId(query_key.pop("id"))
-            except BSONError as e:
-                raise FuncArgsError(str(e))
-        return self._update_document(name, query_key, update_data, upsert=upsert)
+        return self._update_document(name, self._update_query_key(query_key),
+                                     self._update_update_data(update_data), upsert=upsert)
 
     def delete_documents(self, name: str, query_key: dict):
         """
@@ -522,12 +546,7 @@ class MongoClient(object):
         Returns:
             返回删除的数量
         """
-        if query_key and "id" in query_key:
-            try:
-                query_key["_id"] = ObjectId(query_key.pop("id"))
-            except BSONError as e:
-                raise FuncArgsError(str(e))
-        return self._delete_documents(name, query_key)
+        return self._delete_documents(name, self._update_query_key(query_key))
 
     def delete_document(self, name: str, query_key: dict):
         """
@@ -538,12 +557,7 @@ class MongoClient(object):
         Returns:
             返回删除的数量
         """
-        if query_key and "id" in query_key:
-            try:
-                query_key["_id"] = ObjectId(query_key.pop("id"))
-            except BSONError as e:
-                raise FuncArgsError(str(e))
-        return self._delete_document(name, query_key)
+        return self._delete_document(name, self._update_query_key(query_key))
 
     def aggregate(self, name: str, pipline: list, page=None, limit=None):
         """
