@@ -5,3 +5,4 @@ marshmallow>=3.0.0rc3
 ujson
 flask>=1.0.2
 flask-sqlalchemy>=2.3.2
+redis>=3.0.0

@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b15] - 2019-3-23
+
+#### Added 
+- 添加redis基于redis-py的同步客户端的高频使用封装
+
 ###[1.0.0b14] - 2019-3-23
 
 #### Changed 
