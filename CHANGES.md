@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b14] - 2019-3-23
+
+#### Changed 
+- 修改mongo模块使用过程中遇到的问题
+
 ###[1.0.0b13] - 2019-3-16
 
 #### Changed 
