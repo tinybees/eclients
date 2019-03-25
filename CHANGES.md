@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b16] - 2019-3-25
+
+#### Added 
+- 修改update data中设置前缀的错误
+
 ###[1.0.0b15] - 2019-3-23
 
 #### Added 

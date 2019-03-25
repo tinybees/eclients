@@ -374,7 +374,7 @@ class MongoClient(object):
     @staticmethod
     def _update_update_data(update_data):
         """
-        处理update data
+        处理update data, 包装最常使用的操作
         Args:
             update_data: 需要更新的文档值
         Returns:
@@ -385,8 +385,9 @@ class MongoClient(object):
         if len(update_data) > 1:
             update_data = {"$set": update_data}
         else:
-            key, val = update_data.popitem()
-            update_data = {"$set" if "$" not in key else key: val}
+            operator, doc = update_data.popitem()
+            pre_flag = operator.startswith("$")
+            update_data = {"$set" if not pre_flag else operator: {operator: doc} if not pre_flag else doc}
         return update_data
 
     @staticmethod
