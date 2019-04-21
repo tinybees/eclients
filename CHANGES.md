@@ -1,5 +1,20 @@
 ## aeclients Changelog
 
+###[1.0.0b18] - 2019-4-21
+
+#### Added 
+- 增加保存和更新hash数据时对单个键值进行保存和更新的功能
+- 增加基于pymysql的简单TinyMySQL功能，用于简单操作MySQL的时候使用 
+- 工具类中增加由对象名生成类名的功能
+- 工具类中增加解析yaml文件的功能
+- 工具类中增加返回objectid的功能
+
+#### Changed 
+- 修改获取redis数据时可能出现的没有把字符串转换为对象的情况
+- 修改保存redis数据时指定是否进行dump以便进行性能的提高
+- 修改获取redis数据时指定是否进行load以便进行性能的提高
+- 修改Session中增加page_id和page_menu_id两个用于账户的页面权限管理
+
 ###[1.0.0b16] - 2019-3-25
 
 #### Added 
