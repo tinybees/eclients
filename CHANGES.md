@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b19] - 2019-4-22
+
+#### Changed 
+- 修改schema message装饰器判断错误的情况
+
 ###[1.0.0b18] - 2019-4-21
 
 #### Added 
