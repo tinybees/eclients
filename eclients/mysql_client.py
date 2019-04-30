@@ -13,21 +13,21 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import DatabaseError, IntegrityError
 
 from .err_msg import mysql_msg
-from .exceptions import HttpError, MysqlDuplicateKeyError, MysqlError
+from .exceptions import DBDuplicateKeyError, DBError, HttpError
 from .utils import verify_message
 
-__all__ = ("MysqlClient",)
+__all__ = ("DBClient",)
 
 
-class MysqlClient(SQLAlchemy):
+class DBClient(SQLAlchemy):
     """
-    MySQL同步操作指南
+    DB同步操作指南
     """
 
     def __init__(self, app=None, *, username="root", passwd=None, host="127.0.0.1", port=3306, dbname=None,
                  pool_size=50, **kwargs):
         """
-        MySQL同步操作指南
+        DB同步操作指南
         Args:
             app: app应用
             host:mysql host
@@ -101,13 +101,13 @@ class MysqlClient(SQLAlchemy):
         except IntegrityError as e:
             self.session.rollback()
             if "Duplicate" in str(e):
-                raise MysqlDuplicateKeyError(e)
+                raise DBDuplicateKeyError(e)
             else:
-                raise MysqlError(e)
+                raise DBError(e)
         except DatabaseError as e:
             self.session.rollback()
             aelog.exception(e)
-            raise MysqlError(e)
+            raise DBError(e)
         except Exception as e:
             self.session.rollback()
             aelog.exception(e)
@@ -128,13 +128,13 @@ class MysqlClient(SQLAlchemy):
         except IntegrityError as e:
             self.session.rollback()
             if "Duplicate" in str(e):
-                raise MysqlDuplicateKeyError(e)
+                raise DBDuplicateKeyError(e)
             else:
-                raise MysqlError(e)
+                raise DBError(e)
         except DatabaseError as e:
             self.session.rollback()
             aelog.exception(e)
-            raise MysqlError(e)
+            raise DBError(e)
         except Exception as e:
             self.session.rollback()
             aelog.exception(e)
@@ -155,7 +155,7 @@ class MysqlClient(SQLAlchemy):
         except DatabaseError as e:
             self.session.rollback()
             aelog.exception(e)
-            raise MysqlError(e)
+            raise DBError(e)
         except Exception as e:
             self.session.rollback()
             aelog.exception(e)
@@ -175,13 +175,13 @@ class MysqlClient(SQLAlchemy):
         except IntegrityError as e:
             self.session.rollback()
             if "Duplicate" in str(e):
-                raise MysqlDuplicateKeyError(e)
+                raise DBDuplicateKeyError(e)
             else:
-                raise MysqlError(e)
+                raise DBError(e)
         except DatabaseError as e:
             self.session.rollback()
             aelog.exception(e)
-            raise MysqlError(e)
+            raise DBError(e)
         except Exception as e:
             self.session.rollback()
             aelog.exception(e)

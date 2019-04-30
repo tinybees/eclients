@@ -9,7 +9,7 @@
 from werkzeug.exceptions import HTTPException
 
 __all__ = ("ClientError", "ClientResponseError", "ClientConnectionError", "HttpError", "RedisClientError",
-           "RedisConnectError", "MysqlDuplicateKeyError", "MysqlError", "MysqlInvalidNameError", "FuncArgsError",
+           "RedisConnectError", "DBDuplicateKeyError", "DBError", "DBInvalidNameError", "FuncArgsError",
            "Error", "PermissionDeniedError", "QueryArgsError", "MongoError", "MongoDuplicateKeyError",
            "MongoInvalidNameError", "CommandArgsError", "EmailError", "ConfigError")
 
@@ -124,7 +124,7 @@ class ConfigError(Error):
     pass
 
 
-class MysqlError(Error):
+class DBError(Error):
     """
     主要处理mongo错误
     """
@@ -132,7 +132,7 @@ class MysqlError(Error):
     pass
 
 
-class MysqlDuplicateKeyError(MysqlError):
+class DBDuplicateKeyError(DBError):
     """
     处理键重复引发的error
     """
@@ -140,7 +140,7 @@ class MysqlDuplicateKeyError(MysqlError):
     pass
 
 
-class MysqlInvalidNameError(MysqlError):
+class DBInvalidNameError(DBError):
     """
     处理名称错误引发的error
     """
