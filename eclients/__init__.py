@@ -9,7 +9,7 @@
 
 from .mongo_client import *
 from .http_client import *
-from .mysql_client import *
+from .db_client import *
 from .redis_client import *
 
-__version__ = "1.0.0b20"
+__version__ = "1.0.0b21"

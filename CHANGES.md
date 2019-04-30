@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b21] - 2019-4-30
+
+#### Changed 
+-  修改mysqlclient为通用的dbclient
+
 ###[1.0.0b20] - 2019-4-29
 
 #### Changed 
