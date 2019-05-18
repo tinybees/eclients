@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b22] - 2019-5-18
+
+#### Added 
+-  增加dbclient支持绑定同表不同库的处理方式
+
 ###[1.0.0b21] - 2019-4-30
 
 #### Changed 

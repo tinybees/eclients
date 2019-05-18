@@ -9,6 +9,7 @@
 from contextlib import contextmanager
 
 import aelog
+from flask import g
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import DatabaseError, IntegrityError
 
@@ -25,7 +26,7 @@ class DBClient(SQLAlchemy):
     """
 
     def __init__(self, app=None, *, username="root", passwd=None, host="127.0.0.1", port=3306, dbname=None,
-                 pool_size=50, **kwargs):
+                 pool_size=50, is_binds=False, **kwargs):
         """
         DB同步操作指南
         Args:
@@ -36,6 +37,7 @@ class DBClient(SQLAlchemy):
             username: mysql user
             passwd: mysql password
             pool_size: mysql pool size
+            is_binds: Whether to bind same table different database, default false
         """
         self.username = username
         self.passwd = passwd
@@ -43,6 +45,7 @@ class DBClient(SQLAlchemy):
         self.port = port
         self.dbname = dbname
         self.pool_size = pool_size
+        self.is_binds = is_binds
         self.message = kwargs.get("message", {})
         self.use_zh = kwargs.get("use_zh", True)
         self.msg_zh = None
@@ -50,7 +53,8 @@ class DBClient(SQLAlchemy):
 
         super().__init__(app)
 
-    def init_app(self, app, username=None, passwd=None, host=None, port=None, dbname=None, pool_size=None, **kwargs):
+    def init_app(self, app, username=None, passwd=None, host=None, port=None, dbname=None, pool_size=None,
+                 is_binds=None, **kwargs):
         """
         mysql 实例初始化
         Args:
@@ -61,7 +65,7 @@ class DBClient(SQLAlchemy):
             username: mysql user
             passwd: mysql password
             pool_size: mysql pool size
-
+            is_binds: Whether to bind same table different database, default false
         Returns:
 
         """
@@ -73,6 +77,7 @@ class DBClient(SQLAlchemy):
         pool_size = pool_size or app.config.get("ECLIENTS_MYSQL_POOL_SIZE", None) or self.pool_size
         message = kwargs.get("message") or app.config.get("ECLIENTS_MYSQL_MESSAGE", None) or self.message
         use_zh = kwargs.get("use_zh") or app.config.get("ECLIENTS_MYSQL_MSGZH", None) or self.use_zh
+        self.is_binds = is_binds or app.config.get("ECLIENTS_IS_BINDS", None) or self.is_binds
 
         passwd = passwd if passwd is None else str(passwd)
         self.message = verify_message(mysql_msg, message)
@@ -85,6 +90,11 @@ class DBClient(SQLAlchemy):
         app.config['SQLALCHEMY_POOL_RECYCLE'] = 3600
 
         super().init_app(app)
+
+    def get_engine(self, app=None, bind=None):
+        """Returns a specific engine."""
+        bind_key = g.bind_key if self.is_binds and getattr(g, "bind_key", None) else bind  # dynamic bind database
+        return super().get_engine(app=app, bind=bind_key)
 
     @contextmanager
     def insert_session(self, ):
