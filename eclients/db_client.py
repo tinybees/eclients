@@ -26,7 +26,7 @@ class DBClient(SQLAlchemy):
     """
 
     def __init__(self, app=None, *, username="root", passwd=None, host="127.0.0.1", port=3306, dbname=None,
-                 pool_size=50, is_binds=False, bind_name="project_id", **kwargs):
+                 pool_size=50, is_binds=False, bind_name="project_id", binds=None, **kwargs):
         """
         DB同步操作指南
         Args:
@@ -39,6 +39,7 @@ class DBClient(SQLAlchemy):
             pool_size: mysql pool size
             is_binds: Whether to bind same table different database, default false
             bind_name: Binding key identifier,get from request,default project_id
+            binds : Binds corresponds to  SQLALCHEMY_BINDS
         """
         self.username = username
         self.passwd = passwd
@@ -48,6 +49,7 @@ class DBClient(SQLAlchemy):
         self.pool_size = pool_size
         self.is_binds = is_binds
         self.bind_name = bind_name
+        self.binds = binds or {}
         self.message = kwargs.get("message", {})
         self.use_zh = kwargs.get("use_zh", True)
         self.msg_zh = None
@@ -56,7 +58,7 @@ class DBClient(SQLAlchemy):
         super().__init__(app)
 
     def init_app(self, app, username=None, passwd=None, host=None, port=None, dbname=None, pool_size=None,
-                 is_binds=None, bind_name="", **kwargs):
+                 is_binds=None, bind_name="", binds=None, **kwargs):
         """
         mysql 实例初始化
         Args:
@@ -69,6 +71,7 @@ class DBClient(SQLAlchemy):
             pool_size: mysql pool size
             is_binds: Whether to bind same table different database, default false
             bind_name: Binding key identifier,get from request
+            binds : Binds corresponds to  SQLALCHEMY_BINDS
         Returns:
 
         """
@@ -78,6 +81,7 @@ class DBClient(SQLAlchemy):
         port = port or app.config.get("ECLIENTS_MYSQL_PORT", None) or self.port
         dbname = dbname or app.config.get("ECLIENTS_MYSQL_DBNAME", None) or self.dbname
         pool_size = pool_size or app.config.get("ECLIENTS_MYSQL_POOL_SIZE", None) or self.pool_size
+        binds = binds or app.config.get("ECLIENTS_BINDS", None) or self.binds
         message = kwargs.get("message") or app.config.get("ECLIENTS_MYSQL_MESSAGE", None) or self.message
         use_zh = kwargs.get("use_zh") or app.config.get("ECLIENTS_MYSQL_MSGZH", None) or self.use_zh
         self.is_binds = is_binds or app.config.get("ECLIENTS_IS_BINDS", None) or self.is_binds
@@ -89,6 +93,7 @@ class DBClient(SQLAlchemy):
 
         app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://{}:{}@{}:{}/{}".format(
             username, passwd, host, port, dbname)
+        app.config['SQLALCHEMY_BINDS'] = binds
         app.config['SQLALCHEMY_POOL_SIZE'] = pool_size
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         app.config['SQLALCHEMY_POOL_RECYCLE'] = 3600
