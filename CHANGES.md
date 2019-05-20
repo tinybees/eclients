@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b27] - 2019-5-20
+
+#### Added 
+- 增加向dbclient实例传递业务逻辑函数获取bind value的功能
+
 ###[1.0.0b26] - 2019-5-20
 
 #### Changed 

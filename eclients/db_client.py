@@ -40,6 +40,7 @@ class DBClient(SQLAlchemy):
             is_binds: Whether to bind same table different database, default false
             bind_name: Binding key identifier,get from request,default project_id
             binds : Binds corresponds to  SQLALCHEMY_BINDS
+            bind_func: Get the implementation logic of the bound value
         """
         self.username = username
         self.passwd = passwd
@@ -50,6 +51,7 @@ class DBClient(SQLAlchemy):
         self.is_binds = is_binds
         self.bind_name = bind_name
         self.binds = binds or {}
+        self.bind_func = kwargs.get("bind_func", None)
         self.message = kwargs.get("message", {})
         self.use_zh = kwargs.get("use_zh", True)
         self.msg_zh = None
@@ -61,6 +63,7 @@ class DBClient(SQLAlchemy):
                  is_binds=None, bind_name="", binds=None, **kwargs):
         """
         mysql 实例初始化
+
         Args:
             app: app应用
             host:mysql host
@@ -72,6 +75,7 @@ class DBClient(SQLAlchemy):
             is_binds: Whether to bind same table different database, default false
             bind_name: Binding key identifier,get from request
             binds : Binds corresponds to  SQLALCHEMY_BINDS
+
         Returns:
 
         """
@@ -86,6 +90,7 @@ class DBClient(SQLAlchemy):
         use_zh = kwargs.get("use_zh") or app.config.get("ECLIENTS_MYSQL_MSGZH", None) or self.use_zh
         self.is_binds = is_binds or app.config.get("ECLIENTS_IS_BINDS", None) or self.is_binds
         self.bind_name = bind_name or app.config.get("ECLIENTS_BIND_NAME", None) or self.bind_name
+        self.bind_func = kwargs.get("bind_func", None) or self.bind_func
 
         passwd = passwd if passwd is None else str(passwd)
         self.message = verify_message(mysql_msg, message)
@@ -101,16 +106,22 @@ class DBClient(SQLAlchemy):
         def set_bind_key():
             """
             如果绑定多个数据库标记为真，则初始化engine之前需要设置g的绑定数据库键，防止查询的是默认的SQLALCHEMY_DATABASE_URI
+
+            这部分的具体逻辑交给具体的业务，通过实例的bind_func来实现
             Args:
 
             Returns:
 
             """
             if self.is_binds:
-                # 从header和args分别获取bind_name的值，优先获取header
-                bind_value = request.headers.get(self.bind_name) or request.args.get(self.bind_name) or None
-                bind_value = bind_value if bind_value in app.config['SQLALCHEMY_BINDS'] else None
-                setattr(g, "bind_key", bind_value)
+                if self.bind_func and callable(self.bind_func):
+                    self.bind_func()
+                else:
+                    # 默认实现逻辑
+                    # 从header和args分别获取bind_name的值，优先获取header
+                    bind_value = request.headers.get(self.bind_name) or request.args.get(self.bind_name) or None
+                    bind_value = bind_value if bind_value in app.config['SQLALCHEMY_BINDS'] else None
+                    setattr(g, "bind_key", bind_value)
 
         # Registers a function to be first run before the first request
         app.before_first_request_funcs.insert(0, set_bind_key)
@@ -119,7 +130,7 @@ class DBClient(SQLAlchemy):
     def get_engine(self, app=None, bind=None):
         """Returns a specific engine."""
         # dynamic bind database
-        bind = getattr(g, "bind_key") if self.is_binds and getattr(g, "bind_key", None) else bind
+        bind = g.bind_key if self.is_binds and getattr(g, "bind_key", None) else bind
         return super().get_engine(app=app, bind=bind)
 
     @contextmanager
