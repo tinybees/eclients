@@ -38,7 +38,7 @@ class DBClient(SQLAlchemy):
             passwd: mysql password
             pool_size: mysql pool size
             is_binds: Whether to bind same table different database, default false
-            bind_name: Binding key identifier,default project_id
+            bind_name: Binding key identifier,get from request,default project_id
         """
         self.username = username
         self.passwd = passwd
@@ -68,7 +68,7 @@ class DBClient(SQLAlchemy):
             passwd: mysql password
             pool_size: mysql pool size
             is_binds: Whether to bind same table different database, default false
-            bind_name: Binding key identifier
+            bind_name: Binding key identifier,get from request
         Returns:
 
         """
@@ -93,8 +93,7 @@ class DBClient(SQLAlchemy):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         app.config['SQLALCHEMY_POOL_RECYCLE'] = 3600
 
-        @app.before_first_request
-        def update_message():
+        def set_bind_key():
             """
             如果绑定多个数据库标记为真，则初始化engine之前需要设置g的绑定数据库键，防止查询的是默认的SQLALCHEMY_DATABASE_URI
             Args:
@@ -105,14 +104,17 @@ class DBClient(SQLAlchemy):
             if is_binds:
                 # 从header和args分别获取bind_name的值，优先获取header
                 bind_value = request.headers.get(self.bind_name) or request.args.get(self.bind_name) or None
-                setattr(g, self.bind_name, bind_value)
+                bind_value = bind_value if bind_value in app.config['SQLALCHEMY_BINDS'] else None
+                setattr(g, "bind_key", bind_value)
 
+        # Registers a function to be first run before the first request
+        app.before_first_request_funcs.insert(0, set_bind_key)
         super().init_app(app)
 
     def get_engine(self, app=None, bind=None):
         """Returns a specific engine."""
         # dynamic bind database
-        bind = getattr(g, self.bind_name) if self.is_binds and getattr(g, self.bind_name, None) else bind
+        bind = getattr(g, "bind_key") if self.is_binds and getattr(g, "bind_key", None) else bind
         return super().get_engine(app=app, bind=bind)
 
     @contextmanager
