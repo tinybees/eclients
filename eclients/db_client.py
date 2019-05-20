@@ -101,7 +101,7 @@ class DBClient(SQLAlchemy):
             Returns:
 
             """
-            if is_binds:
+            if self.is_binds:
                 # 从header和args分别获取bind_name的值，优先获取header
                 bind_value = request.headers.get(self.bind_name) or request.args.get(self.bind_name) or None
                 bind_value = bind_value if bind_value in app.config['SQLALCHEMY_BINDS'] else None

@@ -1,6 +1,6 @@
 ## aeclients Changelog
 
-###[1.0.0b24] - 2019-5-20
+###[1.0.0b25] - 2019-5-20
 
 #### Changed 
 - 修改dbclient支持绑定同表不同库的实现
