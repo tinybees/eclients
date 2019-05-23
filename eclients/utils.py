@@ -6,6 +6,8 @@
 @software: PyCharm
 @time: 18-12-26 下午3:32
 """
+import secrets
+import string
 import sys
 from collections import MutableMapping, MutableSequence
 from contextlib import contextmanager
@@ -18,7 +20,21 @@ try:
 except ImportError:
     from yaml import Loader
 
-__all__ = ("ignore_error", "verify_message", "analysis_yaml", "gen_class_name", "objectid")
+__all__ = ("ignore_error", "verify_message", "analysis_yaml", "gen_class_name", "objectid", "gen_ident")
+
+
+def gen_ident(ident_len=8):
+    """
+    获取随机的标识码以字母开头， 默认8个字符的长度
+    Args:
+
+    Returns:
+
+    """
+    ident_len = ident_len - 1
+    alphabet = f"{string.ascii_lowercase}{string.digits}"
+    ident = ''.join(secrets.choice(alphabet) for _ in range(ident_len))
+    return f"{secrets.choice(string.ascii_lowercase)}{ident}"
 
 
 @contextmanager
