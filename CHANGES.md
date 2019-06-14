@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b29] - 2019-6-14
+
+#### Added 
+- 工具类中增加异步任务执行的pool_submit工具函数
+
 ###[1.0.0b28] - 2019-5-23
 
 #### Added 
