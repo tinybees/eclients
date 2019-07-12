@@ -10,8 +10,8 @@ from collections import MutableSequence
 from contextlib import contextmanager
 
 import aelog
-from flask import g, request
-from flask_sqlalchemy import SQLAlchemy
+from flask import abort, g, request
+from flask_sqlalchemy import BaseQuery, Pagination, SQLAlchemy
 from sqlalchemy.exc import DatabaseError, IntegrityError
 
 from .err_msg import mysql_msg
@@ -58,7 +58,9 @@ class DBClient(SQLAlchemy):
         self.msg_zh = None
         self._app = None
 
-        super().__init__(app)
+        # 这里要用重写的BaseQuery, 根据BaseQuery的规则,Model中的query_class也需要重新指定为子类model,
+        # 但是从Model的初始化看,如果Model的query_class为None的话还是会设置为和Query一致，符合要求
+        super().__init__(app, query_class=CustomBaseQuery)
 
     def init_app(self, app, username=None, passwd=None, host=None, port=None, dbname=None, pool_size=None,
                  is_binds=None, bind_name="", binds=None, **kwargs):
@@ -272,3 +274,87 @@ class DBClient(SQLAlchemy):
     insert_session = insert_context
     update_session = update_context
     delete_session = delete_context
+
+
+class CustomBaseQuery(BaseQuery):
+    """
+    改造BaseQuery,使得符合业务中使用
+
+    目前是改造如果limit传递为0，则返回所有的数据，这样业务代码中就不用更改了
+    """
+
+    def paginate(self, page=None, per_page=None, error_out=True, max_per_page=None):
+        """Returns ``per_page`` items from page ``page``.
+
+        If ``page`` or ``per_page`` are ``None``, they will be retrieved from
+        the request query. If ``max_per_page`` is specified, ``per_page`` will
+        be limited to that value. If there is no request or they aren't in the
+        query, they default to 1 and 20 respectively.
+
+        When ``error_out`` is ``True`` (default), the following rules will
+        cause a 404 response:
+
+        * No items are found and ``page`` is not 1.
+        * ``page`` is less than 1, or ``per_page`` is negative.
+        * ``page`` or ``per_page`` are not ints.
+
+        When ``error_out`` is ``False``, ``page`` and ``per_page`` default to
+        1 and 20 respectively.
+
+        Returns a :class:`Pagination` object.
+        """
+
+        if request:
+            if page is None:
+                try:
+                    page = int(request.args.get('page', 1))
+                except (TypeError, ValueError):
+                    if error_out:
+                        abort(404)
+
+                    page = 1
+
+            if per_page is None:
+                try:
+                    per_page = int(request.args.get('per_page', 20))
+                except (TypeError, ValueError):
+                    if error_out:
+                        abort(404)
+
+                    per_page = 20
+        else:
+            if page is None:
+                page = 1
+
+            if per_page is None:
+                per_page = 20
+
+        if max_per_page is not None:
+            per_page = min(per_page, max_per_page)
+
+        if page < 1:
+            if error_out:
+                abort(404)
+            else:
+                page = 1
+
+        if per_page < 0:
+            if error_out:
+                abort(404)
+            else:
+                per_page = 20
+
+        # 如果per_page为0,则证明要获取所有的数据，否则还是通常的逻辑
+        items = self.limit(per_page).offset((page - 1) * per_page).all() if per_page != 0 else self.all()
+
+        if not items and page != 1 and error_out:
+            abort(404)
+
+        # No need to count if we're on the first page and there are fewer
+        # items than we expected.
+        if page == 1 and len(items) < per_page:
+            total = len(items)
+        else:
+            total = self.order_by(None).count()
+
+        return Pagination(self, page, per_page, total, items)

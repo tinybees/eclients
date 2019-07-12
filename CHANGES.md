@@ -1,5 +1,13 @@
 ## aeclients Changelog
 
+###[1.0.0b31] - 2019-7-12
+
+#### Changed 
+- 更改dbclient中初始化时调用的query_class为自定义的CustomBaseQuery类
+
+#### Added 
+- dbclient模块中增加自定义的BaseQuery类，用以实现limit=0时返回所有数据的需求
+
 ###[1.0.0b30] - 2019-7-12
 
 #### Changed 
