@@ -118,7 +118,8 @@ class RedisClient(object):
 
             """
             self.redis_db = None
-            self.pool.disconnect()
+            if self.pool:
+                self.pool.disconnect()
 
     def init_engine(self, *, host=None, port=None, dbname=None, passwd="", pool_size=None):
         """
@@ -154,7 +155,8 @@ class RedisClient(object):
 
             """
             self.redis_db = None
-            self.pool.disconnect()
+            if self.pool:
+                self.pool.disconnect()
 
     def save_session(self, session: Session, dump_responses=False, ex=EXPIRED):
         """

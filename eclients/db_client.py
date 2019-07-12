@@ -6,6 +6,7 @@
 @software: PyCharm
 @time: 18-12-25 下午4:58
 """
+from collections import MutableSequence
 from contextlib import contextmanager
 
 import aelog
@@ -133,10 +134,42 @@ class DBClient(SQLAlchemy):
         bind = g.bind_key if self.is_binds and getattr(g, "bind_key", None) else bind
         return super().get_engine(app=app, bind=bind)
 
-    @contextmanager
-    def insert_session(self, ):
+    def save(self, model_obj):
         """
-        插入数据session
+        保存model对象
+        Args:
+            model_obj: model对象
+        Returns:
+
+        """
+        self.session.add(model_obj)
+
+    def save_all(self, model_objs: MutableSequence):
+        """
+        保存model对象
+        Args:
+            model_objs: model对象
+        Returns:
+
+        """
+        if not isinstance(model_objs, MutableSequence):
+            raise ValueError(f"model_objs应该是MutableSequence类型的")
+        self.session.add_all(model_objs)
+
+    def delete(self, model_obj):
+        """
+        删除model对象
+        Args:
+            model_obj: model对象
+        Returns:
+
+        """
+        self.session.delete(model_obj)
+
+    @contextmanager
+    def insert_context(self, ):
+        """
+        插入数据context
         Args:
 
         Returns:
@@ -161,9 +194,9 @@ class DBClient(SQLAlchemy):
             raise HttpError(500, message=self.message[1][self.msg_zh], error=e)
 
     @contextmanager
-    def update_session(self, ):
+    def update_context(self, ):
         """
-        更新数据session
+        更新数据context
         Args:
 
         Returns:
@@ -188,9 +221,9 @@ class DBClient(SQLAlchemy):
             raise HttpError(500, message=self.message[2][self.msg_zh], error=e)
 
     @contextmanager
-    def delete_session(self, ):
+    def delete_context(self, ):
         """
-        删除数据session
+        删除数据context
         Args:
 
         Returns:
@@ -235,3 +268,7 @@ class DBClient(SQLAlchemy):
             raise HttpError(500, message=self.message[2][self.msg_zh], error=e)
         else:
             return cursor.fetchall()
+
+    insert_session = insert_context
+    update_session = update_context
+    delete_session = delete_context

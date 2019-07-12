@@ -146,7 +146,8 @@ class HttpClient(Singleton):
             Returns:
 
             """
-            self.session.close()
+            if self.session:
+                self.session.close()
 
     def _request(self, method, url, *, params=None, data=None, json=None, headers=None, verify_ssl=None,
                  timeout=None, **kwargs):

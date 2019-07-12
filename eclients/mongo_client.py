@@ -167,7 +167,8 @@ class MongoClient(object):
             Returns:
 
             """
-            self.client.close()
+            if self.client:
+                self.client.close()
 
     def _insert_document(self, name, document, insert_one=True):
         """

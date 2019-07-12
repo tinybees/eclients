@@ -1,5 +1,16 @@
 ## aeclients Changelog
 
+###[1.0.0b30] - 2019-7-12
+
+#### Changed 
+- 更改schema valication的中文提示信息
+- 更改http,mongo,mysql,redis中停止服务时会出现关闭pool报错的情况
+- 更改dbclient中部分命名不规范的情况
+
+#### Added 
+- dbclient中增加session的save,save_all,delete的别名
+
+
 ###[1.0.0b29] - 2019-6-14
 
 #### Added 
