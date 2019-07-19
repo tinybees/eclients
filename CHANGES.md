@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b32] - 2019-7-19
+
+#### Added 
+- DBClient类中增加get_session方法，并且增加缓存实例功能，解决在一个视图内部同表不同库的访问问题
+
 ###[1.0.0b31] - 2019-7-12
 
 #### Changed 

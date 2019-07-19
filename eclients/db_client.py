@@ -13,6 +13,7 @@ import aelog
 from flask import abort, g, request
 from flask_sqlalchemy import BaseQuery, Pagination, SQLAlchemy
 from sqlalchemy.exc import DatabaseError, IntegrityError
+from sqlalchemy.orm import Session
 
 from .err_msg import mysql_msg
 from .exceptions import DBDuplicateKeyError, DBError, HttpError
@@ -135,6 +136,25 @@ class DBClient(SQLAlchemy):
         # dynamic bind database
         bind = g.bind_key if self.is_binds and getattr(g, "bind_key", None) else bind
         return super().get_engine(app=app, bind=bind)
+
+    def get_session(self, bind_key, options=None) -> Session:
+        """
+        创建或者获取指定的session
+
+        主要用于在一个视图内部针对同表不同库的数据请求获取
+        Args:
+            bind_key: session需要绑定的ECLIENTS_BINDS中的键
+            options: create_session 所需要的字典或者关键字参数
+        Returns:
+
+        """
+        session_name = f"session_{bind_key}"
+        if not getattr(self, session_name, None):
+            exist_bind_key = getattr(g, "bind_key", None)  # 获取已有的bind_key
+            g.bind_key = bind_key
+            setattr(self, session_name, self.create_scoped_session(options))
+            g.bind_key = exist_bind_key  # bind_key 还原
+        return getattr(self, session_name)
 
     def save(self, model_obj):
         """
