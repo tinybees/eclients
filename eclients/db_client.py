@@ -139,7 +139,7 @@ class DBClient(SQLAlchemy):
 
     def get_session(self, bind_key, options=None) -> Session:
         """
-        创建或者获取指定的session
+        创建或者获取指定的session,这里是session非sessionmaker
 
         主要用于在一个视图内部针对同表不同库的数据请求获取
         Args:
@@ -152,7 +152,7 @@ class DBClient(SQLAlchemy):
         if not getattr(self, session_name, None):
             exist_bind_key = getattr(g, "bind_key", None)  # 获取已有的bind_key
             g.bind_key = bind_key
-            setattr(self, session_name, self.create_scoped_session(options))
+            setattr(self, session_name, self.create_scoped_session(options)())
             g.bind_key = exist_bind_key  # bind_key 还原
         return getattr(self, session_name)
 
