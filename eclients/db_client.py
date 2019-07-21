@@ -10,6 +10,7 @@ from collections import MutableSequence
 from contextlib import contextmanager
 
 import aelog
+from boltons.cacheutils import LRU
 from flask import abort, g, request
 from flask_sqlalchemy import BaseQuery, Pagination, SQLAlchemy
 from sqlalchemy.exc import DatabaseError, IntegrityError
@@ -20,6 +21,8 @@ from .exceptions import DBDuplicateKeyError, DBError, HttpError
 from .utils import verify_message
 
 __all__ = ("DBClient",)
+
+_lru_cache = LRU()
 
 
 class DBClient(SQLAlchemy):
@@ -134,8 +137,24 @@ class DBClient(SQLAlchemy):
     def get_engine(self, app=None, bind=None):
         """Returns a specific engine."""
         # dynamic bind database
-        bind = g.bind_key if self.is_binds and getattr(g, "bind_key", None) else bind
+        # 如果model中指定了bind_key则，永远是指定的bind_key，即便g.bind_key指定了也是使用的model中的bind_key
+        bind = g.bind_key if bind is None and self.is_binds and getattr(g, "bind_key", None) else bind
         return super().get_engine(app=app, bind=bind)
+
+    def get_binds(self, app=None):
+        """Returns a dictionary with a table->engine mapping.
+
+        This is suitable for use of sessionmaker(binds=db.get_binds(app)).
+
+        Increase the cache for table -> engine mapping
+
+        bind_key is the bind mapping name,default None, that is SQLALCHEMY_DATABASE_URI
+        """
+        bind_name = g.bind_key if self.is_binds and getattr(g, "bind_key", None) else None
+
+        if not _lru_cache.get(bind_name):
+            _lru_cache[bind_name] = super().get_binds(app)
+        return _lru_cache[bind_name]
 
     def get_session(self, bind_key, options=None) -> Session:
         """
