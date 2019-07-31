@@ -1,6 +1,11 @@
 ## aeclients Changelog
 
-###[1.0.0b32] - 2019-7-19
+###[1.0.0b34] - 2019-7-31
+
+#### Added 
+- DBClient类中增加分表查询的gen_model方法，动态生成需要分表的model,解决分表的CRUD功能
+
+###[1.0.0b33] - 2019-7-23
 
 #### Added 
 - DBClient类中覆盖get_binds方法，增加映射缓存功能，防止每次初始化session时重新计算

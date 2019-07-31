@@ -116,7 +116,7 @@ def gen_class_name(underline_name):
     Returns:
 
     """
-    return "".join([name.capitalize() for name in underline_name.split("_")])
+    return "".join(name.capitalize() for name in underline_name.split("_"))
 
 
 def analysis_yaml(full_conf_path):

@@ -15,10 +15,11 @@ from flask import abort, g, request
 from flask_sqlalchemy import BaseQuery, Pagination, SQLAlchemy
 from sqlalchemy.exc import DatabaseError, IntegrityError
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from .err_msg import mysql_msg
 from .exceptions import DBDuplicateKeyError, DBError, HttpError
-from .utils import verify_message
+from .utils import gen_class_name, verify_message
 
 __all__ = ("DBClient",)
 
@@ -313,6 +314,40 @@ class DBClient(SQLAlchemy):
     insert_session = insert_context
     update_session = update_context
     delete_session = delete_context
+
+    def gen_model(self, model_cls, suffix: str = None, **kwargs):
+        """
+        用于根据现有的model生成新的model
+
+        主要用于分表的查询和插入
+        Args:
+            model_cls: 要生成分表的model类
+            suffix: 新的model类名的后缀
+            kwargs: 其他的参数
+        Returns:
+
+        """
+        if not issubclass(model_cls, self.Model):
+            raise ValueError("model_cls must be db.Model type.")
+
+        table_name = f"{model_cls.__tablename__}_{suffix}"
+        class_name = f"{gen_class_name(table_name)}Model"
+        if getattr(model_cls, "_cache_class", None) is None:
+            setattr(model_cls, "_cache_class", {})
+
+        model_cls_ = getattr(model_cls, "_cache_class").get(class_name, None)
+        if model_cls_ is None:
+            model_cls_ = type(class_name, (self.Model,), {
+                "__doc__": model_cls.__doc__,
+                "__table_args__ ": model_cls.__table_args__ or {'mysql_engine': 'InnoDB', 'mysql_charset': 'utf8mb4'},
+                "__tablename__": table_name,
+                "__module__": model_cls.__module__,
+                **{key: val for key, val in model_cls.__dict__.items() if isinstance(
+                    val, InstrumentedAttribute) and not key.startswith("_")}
+            })
+            getattr(model_cls, "_cache_class")[class_name] = model_cls_
+
+        return model_cls_
 
 
 class CustomBaseQuery(BaseQuery):
