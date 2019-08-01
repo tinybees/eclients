@@ -337,14 +337,19 @@ class DBClient(SQLAlchemy):
 
         model_cls_ = getattr(model_cls, "_cache_class").get(class_name, None)
         if model_cls_ is None:
+            model_fields = {}
+            for attr_name, field in model_cls.__dict__.items():
+                if isinstance(field, InstrumentedAttribute) and not attr_name.startswith("_"):
+                    model_fields[attr_name] = self.Column(
+                        type_=field.type, primary_key=field.primary_key, index=field.index, nullable=field.nullable,
+                        default=field.default, onupdate=field.onupdate, unique=field.unique,
+                        autoincrement=field.autoincrement, doc=field.doc)
             model_cls_ = type(class_name, (self.Model,), {
                 "__doc__": model_cls.__doc__,
                 "__table_args__ ": model_cls.__table_args__ or {'mysql_engine': 'InnoDB', 'mysql_charset': 'utf8mb4'},
                 "__tablename__": table_name,
                 "__module__": model_cls.__module__,
-                **{key: val for key, val in model_cls.__dict__.items() if isinstance(
-                    val, InstrumentedAttribute) and not key.startswith("_")}
-            })
+                **model_fields})
             getattr(model_cls, "_cache_class")[class_name] = model_cls_
 
         return model_cls_
