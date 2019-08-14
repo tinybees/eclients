@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b35] - 2019-8-14
+
+#### Changed 
+- 更新获取新的session后，在新的session上可以同步使用各种上下文，save等的方法
+
 ###[1.0.0b34] - 2019-7-31
 
 #### Added 

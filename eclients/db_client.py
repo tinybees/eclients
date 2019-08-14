@@ -176,136 +176,144 @@ class DBClient(SQLAlchemy):
             g.bind_key = exist_bind_key  # bind_key 还原
         return getattr(self, session_name)
 
-    def save(self, model_obj):
+    def save(self, model_obj, session=None):
         """
         保存model对象
         Args:
             model_obj: model对象
+            session: session对象, 默认是self.session
         Returns:
 
         """
-        self.session.add(model_obj)
+        self.session.add(model_obj) if session is None else session.add(model_obj)
 
-    def save_all(self, model_objs: MutableSequence):
+    def save_all(self, model_objs: MutableSequence, session=None):
         """
         保存model对象
         Args:
             model_objs: model对象
+            session: session对象, 默认是self.session
         Returns:
 
         """
         if not isinstance(model_objs, MutableSequence):
             raise ValueError(f"model_objs应该是MutableSequence类型的")
-        self.session.add_all(model_objs)
+        self.session.add_all(model_objs) if session is None else session.add_all(model_objs)
 
-    def delete(self, model_obj):
+    def delete(self, model_obj, session=None):
         """
         删除model对象
         Args:
             model_obj: model对象
+            session: session对象, 默认是self.session
         Returns:
 
         """
-        self.session.delete(model_obj)
+        self.session.delete(model_obj) if session is None else session.delete(model_obj)
 
     @contextmanager
-    def insert_context(self, ):
+    def insert_context(self, session=None):
         """
         插入数据context
         Args:
-
+            session: session对象, 默认是self.session
         Returns:
 
         """
+        session = self.session if session is None else session
         try:
             yield self
-            self.session.commit()
+            session.commit()
         except IntegrityError as e:
-            self.session.rollback()
+            session.rollback()
             if "Duplicate" in str(e):
                 raise DBDuplicateKeyError(e)
             else:
                 raise DBError(e)
         except DatabaseError as e:
-            self.session.rollback()
+            session.rollback()
             aelog.exception(e)
             raise DBError(e)
         except Exception as e:
-            self.session.rollback()
+            session.rollback()
             aelog.exception(e)
             raise HttpError(500, message=self.message[1][self.msg_zh], error=e)
 
     @contextmanager
-    def update_context(self, ):
+    def update_context(self, session=None):
         """
         更新数据context
         Args:
-
+            session: session对象, 默认是self.session
         Returns:
 
         """
+        session = self.session if session is None else session
         try:
             yield self
-            self.session.commit()
+            session.commit()
         except IntegrityError as e:
-            self.session.rollback()
+            session.rollback()
             if "Duplicate" in str(e):
                 raise DBDuplicateKeyError(e)
             else:
                 raise DBError(e)
         except DatabaseError as e:
-            self.session.rollback()
+            session.rollback()
             aelog.exception(e)
             raise DBError(e)
         except Exception as e:
-            self.session.rollback()
+            session.rollback()
             aelog.exception(e)
             raise HttpError(500, message=self.message[2][self.msg_zh], error=e)
 
     @contextmanager
-    def delete_context(self, ):
+    def delete_context(self, session=None):
         """
         删除数据context
         Args:
-
+            session: session对象, 默认是self.session
         Returns:
 
         """
+        session = self.session if session is None else session
         try:
             yield self
-            self.session.commit()
+            session.commit()
         except DatabaseError as e:
-            self.session.rollback()
+            session.rollback()
             aelog.exception(e)
             raise DBError(e)
         except Exception as e:
-            self.session.rollback()
+            session.rollback()
             aelog.exception(e)
             raise HttpError(500, message=self.message[3][self.msg_zh], error=e)
 
-    def execute(self, query):
+    def execute(self, query, session=None):
         """
         插入数据，更新或者删除数据
         Args:
             query: SQL的查询字符串或者sqlalchemy表达式
+            session: session对象, 默认是self.session
         Returns:
             不确定执行的是什么查询，直接返回ResultProxy实例
         """
+        session = self.session if session is None else session
         try:
-            cursor = self.session.execute(query)
-            self.session.commit()
+            cursor = session.execute(query)
+            session.commit()
         except IntegrityError as e:
-            self.session.rollback()
+            session.rollback()
             if "Duplicate" in str(e):
                 raise DBDuplicateKeyError(e)
             else:
                 raise DBError(e)
         except DatabaseError as e:
-            self.session.rollback()
+            session.rollback()
             aelog.exception(e)
             raise DBError(e)
         except Exception as e:
-            self.session.rollback()
+            session.rollback()
             aelog.exception(e)
             raise HttpError(500, message=self.message[2][self.msg_zh], error=e)
         else:
