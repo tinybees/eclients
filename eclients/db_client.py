@@ -47,6 +47,7 @@ class DBClient(SQLAlchemy):
             bind_name: Binding key identifier,get from request,default project_id
             binds : Binds corresponds to  SQLALCHEMY_BINDS
             bind_func: Get the implementation logic of the bound value
+            kwargs: 其他参数 eg: charset,binary_prefix
         """
         self.username = username
         self.passwd = passwd
@@ -57,6 +58,8 @@ class DBClient(SQLAlchemy):
         self.is_binds = is_binds
         self.bind_name = bind_name
         self.binds = binds or {}
+        self.charset = kwargs.get("charset", "utf8mb4")
+        self.binary_prefix = kwargs.get("binary_prefix", True)
         self.bind_func = kwargs.get("bind_func", None)
         self.message = kwargs.get("message", {})
         self.use_zh = kwargs.get("use_zh", True)
@@ -83,7 +86,7 @@ class DBClient(SQLAlchemy):
             is_binds: Whether to bind same table different database, default false
             bind_name: Binding key identifier,get from request
             binds : Binds corresponds to  SQLALCHEMY_BINDS
-
+            kwargs: 其他参数 eg: charset,binary_prefix
         Returns:
 
         """
@@ -99,13 +102,15 @@ class DBClient(SQLAlchemy):
         self.is_binds = is_binds or app.config.get("ECLIENTS_IS_BINDS", None) or self.is_binds
         self.bind_name = bind_name or app.config.get("ECLIENTS_BIND_NAME", None) or self.bind_name
         self.bind_func = kwargs.get("bind_func", None) or self.bind_func
+        charset = kwargs.get("charset", None) or self.charset
+        binary_prefix = kwargs.get("binary_prefix", None) or self.binary_prefix
 
         passwd = passwd if passwd is None else str(passwd)
         self.message = verify_message(mysql_msg, message)
         self.msg_zh = "msg_zh" if use_zh else "msg_en"
 
-        app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://{}:{}@{}:{}/{}".format(
-            username, passwd, host, port, dbname)
+        app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://{}:{}@{}:{}/{}?charset={}&binary_prefix={}".format(
+            username, passwd, host, port, dbname, charset, binary_prefix)
         app.config['SQLALCHEMY_BINDS'] = binds
         app.config['SQLALCHEMY_POOL_SIZE'] = pool_size
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
