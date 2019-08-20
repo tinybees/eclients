@@ -6,6 +6,7 @@
 @software: PyCharm
 @time: 18-12-26 下午3:32
 """
+import atexit
 import multiprocessing
 import secrets
 import string
@@ -15,8 +16,11 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 
 import aelog
+import redis
 import yaml
 from bson import ObjectId
+from flask import Flask
+from redis.exceptions import RedisError
 
 try:
     from yaml import CLoader as Loader
@@ -24,10 +28,64 @@ except ImportError:
     from yaml import Loader
 
 __all__ = ("ignore_error", "verify_message", "analysis_yaml", "gen_class_name", "objectid", "gen_ident",
-           "thread_pool", "pool_submit")
+           "thread_pool", "pool_submit", "apscheduler_start")
 
 # 执行任务的线程池
 thread_pool = ThreadPoolExecutor(multiprocessing.cpu_count() * 10 + multiprocessing.cpu_count())
+
+
+def apscheduler_start(app_: Flask, scheduler):
+    """
+    apscheduler的启动方法，利用redis解决多进程多实例的问题
+    Args:
+        app_: app应用实例
+        scheduler: apscheduler的调度实例
+    Returns:
+
+    """
+    try:
+        from flask_apscheduler import APScheduler
+        if not isinstance(scheduler, APScheduler):
+            raise ValueError("scheduler类型错误")
+    except ImportError as e:
+        raise ImportError(e)
+
+    rdb = None
+    try:
+        rdb = redis.StrictRedis(
+            host=app_.config["ECLIENTS_REDIS_HOST"], port=app_.config["ECLIENTS_REDIS_PORT"],
+            db=2, password=app_.config["ECLIENTS_REDIS_PASSWD"], decode_responses=True)
+    except RedisError as e:
+        aelog.exception(e)
+    else:
+        if rdb.get("apscheduler") is None:
+            rdb.set("apscheduler", "apscheduler")
+            scheduler.start()
+    finally:
+        if rdb:
+            rdb.connection_pool.disconnect()
+
+    @atexit.register
+    def remove_apscheduler():
+        """
+        移除redis中保存的标记
+        Args:
+
+        Returns:
+
+        """
+        rdb_ = None
+        try:
+            rdb_ = redis.StrictRedis(
+                host=app_.config["ECLIENTS_REDIS_HOST"], port=app_.config["ECLIENTS_REDIS_PORT"],
+                db=2, password=app_.config["ECLIENTS_REDIS_PASSWD"], decode_responses=True)
+        except RedisError as ex:
+            aelog.exception(ex)
+        else:
+            rdb_.delete("apscheduler")
+        finally:
+            if rdb_:
+                rdb_.connection_pool.disconnect()
 
 
 def pool_submit(func, *args, task_name="", **kwargs):

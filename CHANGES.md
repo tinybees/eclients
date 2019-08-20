@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b37] - 2019-8-20
+
+#### Added 
+- 增加利用redis解决apscheduler多进程会有多实例的解决方案
+
 ###[1.0.0b36] - 2019-8-16
 
 #### Added 
