@@ -64,7 +64,7 @@ class DBClient(SQLAlchemy):
         self.message = kwargs.get("message", {})
         self.use_zh = kwargs.get("use_zh", True)
         self.msg_zh = None
-        self._app = app
+        self.other_session = {}  # 主要保存其他session
 
         # 这里要用重写的BaseQuery, 根据BaseQuery的规则,Model中的query_class也需要重新指定为子类model,
         # 但是从Model的初始化看,如果Model的query_class为None的话还是会设置为和Query一致，符合要求
@@ -90,7 +90,6 @@ class DBClient(SQLAlchemy):
         Returns:
 
         """
-        self._app = app
         username = username or app.config.get("ECLIENTS_MYSQL_USERNAME", None) or self.username
         passwd = passwd or app.config.get("ECLIENTS_MYSQL_PASSWD", None) or self.passwd
         host = host or app.config.get("ECLIENTS_MYSQL_HOST", None) or self.host
@@ -141,6 +140,12 @@ class DBClient(SQLAlchemy):
         app.before_first_request_funcs.insert(0, set_bind_key)
         super().init_app(app)
 
+        @app.teardown_appcontext
+        def shutdown_other_session(response_or_exc):
+            for _, session_ in self.other_session.items():
+                session_.close()
+            return response_or_exc
+
     def get_engine(self, app=None, bind=None):
         """Returns a specific engine."""
         # dynamic bind database
@@ -175,18 +180,13 @@ class DBClient(SQLAlchemy):
 
         """
         session = f"session_{bind_key}"
-        if not getattr(self, session, None):
+        if self.other_session.get(session) is None:
             exist_bind_key = getattr(g, "bind_key", None)  # 获取已有的bind_key
             g.bind_key = bind_key
-            setattr(self, session, self.create_scoped_session(options)())
+            self.other_session[session] = self.create_scoped_session(options)()
             g.bind_key = exist_bind_key  # bind_key 还原
 
-            @self._app.teardown_appcontext
-            def shutdown_session(response_or_exc):
-                session.remove()
-                return response_or_exc
-
-        return getattr(self, session)
+        return self.other_session[session]
 
     def save(self, model_obj, session=None):
         """
