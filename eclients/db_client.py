@@ -64,7 +64,7 @@ class DBClient(SQLAlchemy):
         self.message = kwargs.get("message", {})
         self.use_zh = kwargs.get("use_zh", True)
         self.msg_zh = None
-        self._app = None
+        self._app = app
 
         # 这里要用重写的BaseQuery, 根据BaseQuery的规则,Model中的query_class也需要重新指定为子类model,
         # 但是从Model的初始化看,如果Model的query_class为None的话还是会设置为和Query一致，符合要求
@@ -90,6 +90,7 @@ class DBClient(SQLAlchemy):
         Returns:
 
         """
+        self._app = app
         username = username or app.config.get("ECLIENTS_MYSQL_USERNAME", None) or self.username
         passwd = passwd or app.config.get("ECLIENTS_MYSQL_PASSWD", None) or self.passwd
         host = host or app.config.get("ECLIENTS_MYSQL_HOST", None) or self.host
@@ -173,13 +174,19 @@ class DBClient(SQLAlchemy):
         Returns:
 
         """
-        session_name = f"session_{bind_key}"
-        if not getattr(self, session_name, None):
+        session = f"session_{bind_key}"
+        if not getattr(self, session, None):
             exist_bind_key = getattr(g, "bind_key", None)  # 获取已有的bind_key
             g.bind_key = bind_key
-            setattr(self, session_name, self.create_scoped_session(options)())
+            setattr(self, session, self.create_scoped_session(options)())
             g.bind_key = exist_bind_key  # bind_key 还原
-        return getattr(self, session_name)
+
+            @self._app.teardown_appcontext
+            def shutdown_session(response_or_exc):
+                session.remove()
+                return response_or_exc
+
+        return getattr(self, session)
 
     def save(self, model_obj, session=None):
         """
@@ -340,6 +347,8 @@ class DBClient(SQLAlchemy):
         Returns:
 
         """
+        if kwargs:
+            aelog.info(kwargs)
         if not issubclass(model_cls, self.Model):
             raise ValueError("model_cls must be db.Model type.")
 
