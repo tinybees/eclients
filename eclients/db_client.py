@@ -133,18 +133,14 @@ class DBClient(SQLAlchemy):
                     # 默认实现逻辑
                     # 从header和args分别获取bind_name的值，优先获取header
                     bind_value = request.headers.get(self.bind_name) or request.args.get(self.bind_name) or None
-                    bind_value = bind_value if bind_value in app.config['SQLALCHEMY_BINDS'] else None
+                    if bind_value and bind_value not in app.config['SQLALCHEMY_BINDS']:
+                        app.config['SQLALCHEMY_BINDS'][bind_value] = app.config[
+                            'SQLALCHEMY_DATABASE_URI'].replace(dbname, f"{dbname}_{bind_value}")
                     setattr(g, "bind_key", bind_value)
 
         # Registers a function to be first run before the first request
         app.before_first_request_funcs.insert(0, set_bind_key)
         super().init_app(app)
-
-        @app.teardown_appcontext
-        def shutdown_other_session(response_or_exc):
-            for _, session_ in self.other_session.items():
-                session_.close()
-            return response_or_exc
 
     def get_engine(self, app=None, bind=None):
         """Returns a specific engine."""
