@@ -341,7 +341,7 @@ class DBClient(SQLAlchemy):
 
     def gen_model(self, model_cls, suffix: str = None, **kwargs):
         """
-        用于根据现有的model生成新的model
+        用于根据现有的model生成新的model类
 
         主要用于分表的查询和插入
         Args:
