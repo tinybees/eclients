@@ -13,6 +13,7 @@ import aelog
 from boltons.cacheutils import LRU
 from flask import abort, g, request
 from flask_sqlalchemy import BaseQuery, Pagination, SQLAlchemy
+from sqlalchemy.engine.result import ResultProxy
 from sqlalchemy.exc import DatabaseError, IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -64,7 +65,7 @@ class DBClient(SQLAlchemy):
         self.message = kwargs.get("message", {})
         self.use_zh = kwargs.get("use_zh", True)
         self.msg_zh = None
-        self.other_session = {}  # 主要保存其他session
+        self._sessions = {}  # 主要保存其他session
 
         # 这里要用重写的BaseQuery, 根据BaseQuery的规则,Model中的query_class也需要重新指定为子类model,
         # 但是从Model的初始化看,如果Model的query_class为None的话还是会设置为和Query一致，符合要求
@@ -142,6 +143,12 @@ class DBClient(SQLAlchemy):
         app.before_first_request_funcs.insert(0, set_bind_key)
         super().init_app(app)
 
+        @app.teardown_appcontext
+        def shutdown_other_session(response_or_exc):
+            for _, session_ in self._sessions.items():
+                session_.remove()
+            return response_or_exc
+
     def get_engine(self, app=None, bind=None):
         """Returns a specific engine."""
         # dynamic bind database
@@ -164,25 +171,25 @@ class DBClient(SQLAlchemy):
             _lru_cache[bind_name] = super().get_binds(app)
         return _lru_cache[bind_name]
 
-    def get_session(self, bind_key, options=None) -> Session:
+    def gen_session(self, bind_key, session_options=None) -> Session:
         """
         创建或者获取指定的session,这里是session非sessionmaker
 
         主要用于在一个视图内部针对同表不同库的数据请求获取
         Args:
             bind_key: session需要绑定的ECLIENTS_BINDS中的键
-            options: create_session 所需要的字典或者关键字参数
+            session_options: create_session 所需要的字典或者关键字参数
         Returns:
 
         """
-        session = f"session_{bind_key}"
-        if self.other_session.get(session) is None:
-            exist_bind_key = getattr(g, "bind_key", None)  # 获取已有的bind_key
-            g.bind_key = bind_key
-            self.other_session[session] = self.create_scoped_session(options)()
-            g.bind_key = exist_bind_key  # bind_key 还原
+        exist_bind_key = getattr(g, "bind_key", None)  # 获取已有的bind_key
+        g.bind_key = bind_key
+        if bind_key not in self._sessions:
+            self._sessions[bind_key] = self.create_scoped_session(session_options)
+        session = self._sessions[bind_key]()
+        g.bind_key = exist_bind_key  # bind_key 还原
 
-        return self.other_session[session]
+        return session
 
     def save(self, model_obj, session=None):
         """
@@ -297,18 +304,19 @@ class DBClient(SQLAlchemy):
             aelog.exception(e)
             raise HttpError(500, message=self.message[3][self.msg_zh], error=e)
 
-    def execute(self, query, session=None):
+    def execute(self, query, params: dict = None, session: Session = None) -> ResultProxy:
         """
         插入数据，更新或者删除数据
         Args:
             query: SQL的查询字符串或者sqlalchemy表达式
+            params: SQL表达式中的参数
             session: session对象, 默认是self.session
         Returns:
             不确定执行的是什么查询，直接返回ResultProxy实例
         """
         session = self.session if session is None else session
         try:
-            cursor = session.execute(query)
+            cursor = session.execute(query, params)
             session.commit()
         except IntegrityError as e:
             session.rollback()
@@ -325,7 +333,7 @@ class DBClient(SQLAlchemy):
             aelog.exception(e)
             raise HttpError(500, message=self.message[2][self.msg_zh], error=e)
         else:
-            return cursor.fetchall()
+            return cursor
 
     insert_session = insert_context
     update_session = update_context

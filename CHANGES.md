@@ -1,5 +1,12 @@
 ## aeclients Changelog
 
+###[1.0.0b40] - 2019-9-4
+
+#### Changed 
+- 优化session的创建机制，现在的机制和flask sqlalchemy一致
+- 优化创建的session在应用上下文结束后remove的机制
+- 修改execute函数的实现机制，参数和SQL分开更安全,直接返回代理对象
+
 ###[1.0.0b39] - 2019-9-3
 
 #### Changed 
