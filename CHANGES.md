@@ -1,5 +1,11 @@
 ## aeclients Changelog
 
+###[1.0.0b41] - 2019-9-5
+
+#### Added 
+- utils模块中增加number方法，将字符串类型转换为number类型，转换失败返回默认值
+
+
 ###[1.0.0b40] - 2019-9-4
 
 #### Changed 
