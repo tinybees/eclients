@@ -11,6 +11,7 @@ import secrets
 import ujson
 import uuid
 from collections import MutableMapping
+from typing import Dict
 
 import aelog
 import redis
@@ -63,7 +64,7 @@ class RedisClient(object):
             pool_size: redis pool size
         """
         self.pool = None
-        self.redis_db = None
+        self.redis_db: redis.StrictRedis = None
         self.host = host
         self.port = port
         self.dbname = dbname
@@ -204,6 +205,18 @@ class RedisClient(object):
             session_id_ = self.redis_db.hget(session_id, "session_id")
             if session_id_ != session_id:
                 raise RedisClientError("invalid session_id, session_id={}".format(session_id))
+            exist_keys = []
+            session_data = self.get_session(session_id, cls_flag=False)
+            exist_keys.append(session_data["org_id"])
+            exist_keys.append(session_data["role_id"])
+            exist_keys.append(session_data["permission_id"])
+            exist_keys.append(session_data["static_permission_id"])
+            exist_keys.append(session_data["dynamic_permission_id"])
+            exist_keys.append(session_data["page_id"])
+            exist_keys.append(session_data["page_menu_id"])
+
+            with ignore_error():  # 删除已经存在的和账户相关的缓存key
+                self.delete_keys(exist_keys)
 
             if not self.redis_db.delete(session_id):
                 raise RedisClientError("delete session failed, session_id={}".format(session_id))
@@ -241,7 +254,8 @@ class RedisClient(object):
             aelog.exception("update session error: {}, {}".format(session_data["session_id"], e))
             raise RedisClientError(str(e))
 
-    def get_session(self, session_id, ex=SESSION_EXPIRED, cls_flag=True, load_responses=False) -> Session:
+    def get_session(self, session_id, ex=SESSION_EXPIRED, cls_flag=True, load_responses=False
+                    ) -> Session or Dict[str, str]:
         """
         获取session
         Args:
