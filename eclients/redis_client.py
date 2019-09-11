@@ -195,7 +195,7 @@ class RedisClient(object):
             # 清除老的令牌
             try:
                 old_session_id = self.get_hash_data(self._account_key, field_name=session.account_id)
-            except RedisError as e:
+            except RedisClientError as e:
                 aelog.info(f"{session.account_id} no old token token, {str(e)}")
             else:
                 self.delete_session(old_session_id, False)
