@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b43] - 2019-9-11
+
+#### Changed 
+- 更改由于session过期后再次登录删除老的session报错的问题
+
 ###[1.0.0b42] - 2019-9-10
 
 #### Added 
