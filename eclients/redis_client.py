@@ -22,6 +22,7 @@ from .utils import ignore_error
 
 __all__ = ("Session", "RedisClient")
 
+LONG_EXPIRED = 24 * 60 * 60  # 最长过期时间
 EXPIRED = 12 * 60 * 60  # 通用过期时间
 SESSION_EXPIRED = 30 * 60  # session过期时间
 
@@ -199,7 +200,8 @@ class RedisClient(object):
             else:
                 self.delete_session(old_session_id, False)
             # 更新新的令牌
-            self.save_update_hash_data(self._account_key, field_name=session.account_id, hash_data=session.session_id)
+            self.save_update_hash_data(self._account_key, field_name=session.account_id,
+                                       hash_data=session.session_id, ex=LONG_EXPIRED)
             return session.session_id
 
     def delete_session(self, session_id, delete_key: bool = True):
@@ -268,7 +270,8 @@ class RedisClient(object):
             raise RedisClientError(str(e))
         else:
             # 更新令牌
-            self.save_update_hash_data(self._account_key, field_name=session.account_id, hash_data=session.session_id)
+            self.save_update_hash_data(self._account_key, field_name=session.account_id,
+                                       hash_data=session.session_id, ex=LONG_EXPIRED)
 
     def get_session(self, session_id, ex=SESSION_EXPIRED, cls_flag=True, load_responses=False
                     ) -> Session or Dict[str, str]:
