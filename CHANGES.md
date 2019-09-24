@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.0b44] - 2019-9-24
+
+#### Changed 
+- 优化apscheduler启动逻辑，确保多进程中只有一个进程能启动
+
 ###[1.0.0b43] - 2019-9-11
 
 #### Changed 

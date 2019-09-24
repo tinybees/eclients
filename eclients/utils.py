@@ -34,6 +34,7 @@ __all__ = ("ignore_error", "verify_message", "analysis_yaml", "gen_class_name", 
 thread_pool = ThreadPoolExecutor(multiprocessing.cpu_count() * 10 + multiprocessing.cpu_count())
 
 
+# noinspection PyProtectedMember
 def apscheduler_start(app_: Flask, scheduler):
     """
     apscheduler的启动方法，利用redis解决多进程多实例的问题
@@ -58,9 +59,12 @@ def apscheduler_start(app_: Flask, scheduler):
     except RedisError as e:
         aelog.exception(e)
     else:
-        if rdb.get("apscheduler") is None:
-            rdb.set("apscheduler", "apscheduler")
-            scheduler.start()
+        with rdb.lock("apscheduler_lock"):
+            if rdb.get("apscheduler") is None:
+                rdb.set("apscheduler", "apscheduler")
+                scheduler.start()
+            else:
+                scheduler._scheduler.state = 2
     finally:
         if rdb:
             rdb.connection_pool.disconnect()
@@ -82,7 +86,8 @@ def apscheduler_start(app_: Flask, scheduler):
         except RedisError as ex:
             aelog.exception(ex)
         else:
-            rdb_.delete("apscheduler")
+            with ignore_error():
+                rdb_.delete("apscheduler")
         finally:
             if rdb_:
                 rdb_.connection_pool.disconnect()
