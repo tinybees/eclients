@@ -28,19 +28,38 @@ except ImportError:
     from yaml import Loader
 
 __all__ = ("ignore_error", "verify_message", "analysis_yaml", "gen_class_name", "objectid", "gen_ident",
-           "thread_pool", "pool_submit", "apscheduler_start", "number")
+           "thread_pool", "pool_submit", "apscheduler_start", "number", "wark_job")
 
 # 执行任务的线程池
 thread_pool = ThreadPoolExecutor(multiprocessing.cpu_count() * 10 + multiprocessing.cpu_count())
 
 
 # noinspection PyProtectedMember
-def apscheduler_start(app_: Flask, scheduler):
+def wark_job(scheduler):
+    """
+    唤醒job
+    Args:
+
+    Returns:
+
+    """
+    scheduler._scheduler.wakeup()
+
+
+# noinspection PyProtectedMember
+def apscheduler_start(app_: Flask, scheduler, is_warkup=True, warkup_func=None, warkup_seconds=3600):
     """
     apscheduler的启动方法，利用redis解决多进程多实例的问题
+
+    warkup_func可以包装wark_job即可
+    def warkup_func():
+        wark_job(scheduler)  # 这里的scheduler就是启动后的apscheduler全局实例
     Args:
         app_: app应用实例
         scheduler: apscheduler的调度实例
+        is_warkup: 是否定期发现job，用于非运行scheduler进程添加的job
+        warkup_func: 唤醒的job函数，可以包装wark_job
+        warkup_seconds: 定期唤醒的时间间隔
     Returns:
 
     """
@@ -63,6 +82,9 @@ def apscheduler_start(app_: Flask, scheduler):
             if rdb.get("apscheduler") is None:
                 rdb.set("apscheduler", "apscheduler")
                 scheduler.start()
+                if is_warkup and callable(warkup_func):
+                    scheduler.add_job("warkup", warkup_func, trigger="interval", seconds=warkup_seconds,
+                                      replace_existing=True)
             else:
                 scheduler._scheduler.state = 2
     finally:
