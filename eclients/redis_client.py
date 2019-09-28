@@ -34,9 +34,9 @@ class Session(object):
 
     """
 
-    def __init__(self, account_id, *, org_id=None, role_id=None, permission_id=None, **kwargs):
+    def __init__(self, account_id, *, session_id=None, org_id=None, role_id=None, permission_id=None, **kwargs):
         self.account_id = account_id  # 账户ID
-        self.session_id = secrets.token_urlsafe()  # session ID
+        self.session_id = secrets.token_urlsafe() if not session_id else session_id  # session ID
         self.org_id = org_id or uuid.uuid4().hex  # 账户的组织结构在redis中的ID
         self.role_id = role_id or uuid.uuid4().hex  # 账户的角色在redis中的ID
         self.permission_id = permission_id or uuid.uuid4().hex  # 账户的权限在redis中的ID
@@ -187,7 +187,7 @@ class RedisClient(object):
             if not self.redis_db.hmset(session_data["session_id"], session_data):
                 raise RedisClientError("save session failed, session_id={}".format(session_data["session_id"]))
             if not self.redis_db.expire(session_data["session_id"], ex):
-                raise RedisClientError("set session expire failed, session_id={}".format(session_data["session_id"]))
+                aelog.error("set session expire failed, session_id={}".format(session_data["session_id"]))
         except RedisError as e:
             aelog.exception("save session error: {}, {}".format(session.session_id, e))
             raise RedisClientError(str(e))
@@ -235,7 +235,7 @@ class RedisClient(object):
                     self.redis_db.hdel(self._account_key, session_data["account_id"])
 
             if not self.redis_db.delete(session_id):
-                raise RedisClientError("delete session failed, session_id={}".format(session_id))
+                aelog.error("delete session failed, session_id={}".format(session_id))
         except RedisError as e:
             aelog.exception("delete session error: {}, {}".format(session_id, e))
             raise RedisClientError(str(e))
@@ -265,7 +265,7 @@ class RedisClient(object):
             if not self.redis_db.hmset(session_data["session_id"], session_data):
                 raise RedisClientError("update session failed, session_id={}".format(session_data["session_id"]))
             if not self.redis_db.expire(session_data["session_id"], ex):
-                raise RedisClientError("set session expire failed, session_id={}".format(session_data["session_id"]))
+                aelog.error("set session expire failed, session_id={}".format(session_data["session_id"]))
         except RedisError as e:
             aelog.exception("update session error: {}, {}".format(session_data["session_id"], e))
             raise RedisClientError(str(e))
@@ -293,7 +293,7 @@ class RedisClient(object):
                 raise RedisClientError("not found session, session_id={}".format(session_id))
 
             if not self.redis_db.expire(session_id, ex):
-                raise RedisClientError("set session expire failed, session_id={}".format(session_id))
+                aelog.error("set session expire failed, session_id={}".format(session_id))
         except RedisError as e:
             aelog.exception("get session error: {}, {}".format(session_id, e))
             raise RedisClientError(e)
@@ -308,9 +308,9 @@ class RedisClient(object):
                 session_data = hash_data
 
             if cls_flag:
-                return Session(account_id=session_data.pop('account_id'), org_id=session_data.pop("org_id"),
-                               role_id=session_data.pop("role_id"), permission_id=session_data.pop("permission_id"),
-                               **session_data)
+                return Session(session_data.pop('account_id'), session_id=session_data.pop('session_id'),
+                               org_id=session_data.pop("org_id"), role_id=session_data.pop("role_id"),
+                               permission_id=session_data.pop("permission_id"), **session_data)
             else:
                 return session_data
 
@@ -365,7 +365,7 @@ class RedisClient(object):
                 self.redis_db.hset(name, field_name, hash_data)
 
             if not self.redis_db.expire(name, ex):
-                raise RedisClientError("set hash data expire failed, session_id={}".format(name))
+                aelog.error("set hash data expire failed, session_id={}".format(name))
         except RedisError as e:
             raise RedisClientError(str(e))
         else:
@@ -403,7 +403,7 @@ class RedisClient(object):
                 raise RedisClientError("not found hash data, name={}, field_name={}".format(name, field_name))
 
             if not self.redis_db.expire(name, ex):
-                raise RedisClientError("set expire failed, name={}".format(name))
+                aelog.error("set expire failed, name={}".format(name))
         except RedisError as e:
             raise RedisClientError(str(e))
         else:
@@ -411,7 +411,7 @@ class RedisClient(object):
 
     def get_list_data(self, name, start=0, end=-1, ex=EXPIRED):
         """
-        保存数据到redis的列表中
+        获取redis的列表中的数据
         Args:
             name: redis key的名称
             start: 获取数据的起始位置,默认列表的第一个值
@@ -422,11 +422,8 @@ class RedisClient(object):
         """
         try:
             data = self.redis_db.lrange(name, start=start, end=end)
-            if not data:
-                raise RedisClientError("not found list data, name={}, start={}, end={}".format(name, start, end))
-
             if not self.redis_db.expire(name, ex):
-                raise RedisClientError("set expire failed, name={}".format(name))
+                aelog.error("set expire failed, name={}".format(name))
         except RedisError as e:
             raise RedisClientError(str(e))
         else:
@@ -452,7 +449,7 @@ class RedisClient(object):
                 if not self.redis_db.rpush(name, *list_data):
                     raise RedisClientError("lpush value to tail failed.")
             if not self.redis_db.expire(name, ex):
-                raise RedisClientError("set expire failed, name={}".format(name))
+                aelog.error("set expire failed, name={}".format(name))
         except RedisError as e:
             raise RedisClientError(str(e))
         else:
@@ -477,29 +474,50 @@ class RedisClient(object):
         else:
             return name
 
-    def get_usual_data(self, name, ex=EXPIRED):
+    def incrbynumber(self, name, amount=1, ex=EXPIRED):
+        """
+
+        Args:
+
+        Returns:
+
+        """
+        try:
+            if isinstance(amount, int):
+                if not self.redis_db.incr(name, amount):
+                    raise RedisClientError("Increments int value failed!")
+            else:
+                if not self.redis_db.incrbyfloat(name, amount):
+                    raise RedisClientError("Increments float value failed!")
+            if not self.redis_db.expire(name, ex):
+                aelog.error("set expire failed, name={}".format(name))
+        except RedisError as e:
+            raise RedisClientError(str(e))
+        else:
+            return name
+
+    def get_usual_data(self, name, load_responses=True, update_expire=True, ex=EXPIRED):
         """
         获取name对应的值
         Args:
             name: redis key的名称
+            load_responses: 是否转码默认转码
+            update_expire: 是否更新过期时间
             ex: 过期时间，单位秒
         Returns:
             反序列化对象
         """
-        try:
-            data = self.redis_db.get(name)
-            if not data:
-                raise RedisClientError("not found usual data, name={}".format(name))
+        data = self.redis_db.get(name)
 
+        if data is not None and update_expire:  # 保证key存在时设置过期时间
             if not self.redis_db.expire(name, ex):
-                raise RedisClientError("set expire failed, name={}".format(name))
+                aelog.error("set expire failed, name={}".format(name))
 
-        except RedisError as e:
-            raise RedisClientError(str(e))
-        else:
+        if load_responses:
             with ignore_error():
                 data = ujson.loads(data)
-            return data
+
+        return data
 
     def is_exist_key(self, name):
         """
@@ -509,12 +527,7 @@ class RedisClient(object):
         Returns:
 
         """
-        try:
-            data = self.redis_db.exists(name)
-        except RedisError as e:
-            raise RedisClientError(str(e))
-        else:
-            return data
+        return self.redis_db.exists(name)
 
     def delete_keys(self, names: list):
         """
@@ -525,13 +538,10 @@ class RedisClient(object):
 
         """
         names = (names,) if isinstance(names, str) else names
-        try:
-            if not self.redis_db.delete(*names):
-                raise RedisClientError("Delete redis keys failed {}.".format(*names))
-        except RedisError as e:
-            raise RedisClientError(str(e))
+        if not self.redis_db.delete(*names):
+            aelog.error("Delete redis keys failed {}.".format(*names))
 
-    def get_keys(self, pattern_name):
+    def get_keys(self, pattern_name) -> list:
         """
         根据正则表达式获取redis的keys
         Args:
@@ -539,9 +549,4 @@ class RedisClient(object):
         Returns:
 
         """
-        try:
-            data = self.redis_db.keys(pattern_name)
-        except RedisError as e:
-            raise RedisClientError(str(e))
-        else:
-            return data
+        return self.redis_db.keys(pattern_name)
