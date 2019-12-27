@@ -449,8 +449,23 @@ class CustomBaseQuery(BaseQuery):
             else:
                 per_page = 20
 
-        # 如果per_page为0,则证明要获取所有的数据，否则还是通常的逻辑
-        items = self.limit(per_page).offset((page - 1) * per_page).all() if per_page != 0 else self.all()
+        select_model = self._primary_entity.selectable
+
+        # 如果分页获取的时候没有进行排序,并且model中有id字段,则增加用id字段的升序排序
+        # 前提是默认id是主键,因为不排序会有混乱数据,所以从中间件直接解决,业务层不需要关心了
+        if getattr(select_model.c, "id", None) is not None and self._order_by is False:
+            # 如果per_page为0,则证明要获取所有的数据，否则还是通常的逻辑
+            if per_page != 0:
+                items = self.order_by(select_model.c.id.asc()
+                                      ).limit(per_page).offset((page - 1) * per_page).all()
+            else:
+                items = self.order_by(select_model.c.id.asc()).all()
+        else:
+            # 如果per_page为0,则证明要获取所有的数据，否则还是通常的逻辑
+            if per_page != 0:
+                items = self.limit(per_page).offset((page - 1) * per_page).all()
+            else:
+                items = self.all()
 
         if not items and page != 1 and error_out:
             abort(404)
