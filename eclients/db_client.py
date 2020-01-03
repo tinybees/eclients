@@ -6,7 +6,7 @@
 @software: PyCharm
 @time: 18-12-25 下午4:58
 """
-from collections import MutableSequence
+from collections import MutableMapping, MutableSequence
 from contextlib import contextmanager
 
 import aelog
@@ -238,7 +238,6 @@ class DBClient(SQLAlchemy):
         session = self.session if session is None else session
         try:
             yield self
-            session.commit()
         except IntegrityError as e:
             session.rollback()
             if "Duplicate" in str(e):
@@ -252,7 +251,9 @@ class DBClient(SQLAlchemy):
         except Exception as e:
             session.rollback()
             aelog.exception(e)
-            raise HttpError(500, message=self.message[1][self.msg_zh], error=e)
+            raise HttpError(400, message=self.message[1][self.msg_zh], error=e)
+        else:
+            session.commit()
 
     @contextmanager
     def update_context(self, session=None):
@@ -266,7 +267,6 @@ class DBClient(SQLAlchemy):
         session = self.session if session is None else session
         try:
             yield self
-            session.commit()
         except IntegrityError as e:
             session.rollback()
             if "Duplicate" in str(e):
@@ -280,7 +280,9 @@ class DBClient(SQLAlchemy):
         except Exception as e:
             session.rollback()
             aelog.exception(e)
-            raise HttpError(500, message=self.message[2][self.msg_zh], error=e)
+            raise HttpError(400, message=self.message[2][self.msg_zh], error=e)
+        else:
+            session.commit()
 
     @contextmanager
     def delete_context(self, session=None):
@@ -294,7 +296,6 @@ class DBClient(SQLAlchemy):
         session = self.session if session is None else session
         try:
             yield self
-            session.commit()
         except DatabaseError as e:
             session.rollback()
             aelog.exception(e)
@@ -302,9 +303,11 @@ class DBClient(SQLAlchemy):
         except Exception as e:
             session.rollback()
             aelog.exception(e)
-            raise HttpError(500, message=self.message[3][self.msg_zh], error=e)
+            raise HttpError(400, message=self.message[3][self.msg_zh], error=e)
+        else:
+            session.commit()
 
-    def execute(self, query, params: dict = None, session: Session = None) -> ResultProxy:
+    def _execute(self, query, params: dict = None, session: Session = None) -> ResultProxy:
         """
         插入数据，更新或者删除数据
         Args:
@@ -317,7 +320,6 @@ class DBClient(SQLAlchemy):
         session = self.session if session is None else session
         try:
             cursor = session.execute(query, params)
-            session.commit()
         except IntegrityError as e:
             session.rollback()
             if "Duplicate" in str(e):
@@ -331,13 +333,32 @@ class DBClient(SQLAlchemy):
         except Exception as e:
             session.rollback()
             aelog.exception(e)
-            raise HttpError(500, message=self.message[2][self.msg_zh], error=e)
+            raise HttpError(400, message=self.message[2][self.msg_zh], error=e)
         else:
+            session.commit()
             return cursor
 
-    insert_session = insert_context
-    update_session = update_context
-    delete_session = delete_context
+    def execute(self, query, params: dict = None, session: Session = None, size=None):
+        """
+        插入数据，更新或者删除数据
+        Args:
+            query: SQL的查询字符串或者sqlalchemy表达式
+            params: SQL表达式中的参数
+            session: session对象, 默认是self.session
+            size: 查询数据大小, 默认返回所有
+        Returns:
+            不确定执行的是什么查询，直接返回ResultProxy实例
+        """
+        params = dict(params) if isinstance(params, MutableMapping) else {}
+        with self._execute(query, params, session) as cursor:
+            if size is None:
+                resp = cursor.fetchall()
+            elif size == 1:
+                resp = cursor.fetchone()
+            else:
+                resp = cursor.fetchmany(size)
+
+        return [dict(val) for val in resp] if size != 1 else dict(resp) if resp else None
 
     def gen_model(self, model_cls, suffix: str = None, **kwargs):
         """
@@ -388,7 +409,8 @@ class CustomBaseQuery(BaseQuery):
     目前是改造如果limit传递为0，则返回所有的数据，这样业务代码中就不用更改了
     """
 
-    def paginate(self, page=None, per_page=None, error_out=True, max_per_page=None):
+    def paginate(self, page=None, per_page=None, error_out=True, max_per_page=None,
+                 primary_order=True) -> Pagination:
         """Returns ``per_page`` items from page ``page``.
 
         If ``page`` or ``per_page`` are ``None``, they will be retrieved from
@@ -402,6 +424,7 @@ class CustomBaseQuery(BaseQuery):
         * No items are found and ``page`` is not 1.
         * ``page`` is less than 1, or ``per_page`` is negative.
         * ``page`` or ``per_page`` are not ints.
+        * primary_order: 默认启用主键ID排序的功能，在大数据查询时可以关闭此功能，在90%数据量不大的情况下可以加快分页的速度
 
         When ``error_out`` is ``False``, ``page`` and ``per_page`` default to
         1 and 20 respectively.
@@ -449,16 +472,17 @@ class CustomBaseQuery(BaseQuery):
             else:
                 per_page = 20
 
-        select_model = self._primary_entity.selectable
+        if primary_order is True:
 
-        # 如果分页获取的时候没有进行排序,并且model中有id字段,则增加用id字段的升序排序
-        # 前提是默认id是主键,因为不排序会有混乱数据,所以从中间件直接解决,业务层不需要关心了
-        # 如果业务层有排序了，则此做为组合排序的字段
-        if getattr(select_model.c, "id", None) is not None:
+            # 如果分页获取的时候没有进行排序,并且model中有id字段,则增加用id字段的升序排序
+            # 前提是默认id是主键,因为不排序会有混乱数据,所以从中间件直接解决,业务层不需要关心了
+            # 如果业务层有排序了，则此处不再提供排序功能
+            # 如果遇到大数据量的分页查询问题时，建议关闭此处，然后再基于已有的索引分页
             if self._order_by is False or self._order_by is None:
-                self._order_by = [select_model.c.id.asc()]
-            else:
-                self._order_by.append(select_model.c.id.asc())
+                select_model = self._primary_entity.selectable
+
+                if getattr(select_model.c, "id", None) is not None:
+                    self._order_by = [select_model.c.id.asc()]
 
         # 如果per_page为0,则证明要获取所有的数据，否则还是通常的逻辑
         if per_page != 0:
