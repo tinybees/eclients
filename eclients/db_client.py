@@ -8,13 +8,13 @@
 """
 from collections import MutableMapping, MutableSequence
 from contextlib import contextmanager
-from typing import Dict, List
+from typing import List
 
 import aelog
 from boltons.cacheutils import LRU
 from flask import abort, g, request
 from flask_sqlalchemy import BaseQuery, Pagination, SQLAlchemy
-from sqlalchemy.engine.result import ResultProxy
+from sqlalchemy.engine.result import ResultProxy, RowProxy
 from sqlalchemy.exc import DatabaseError, IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -340,7 +340,7 @@ class DBClient(SQLAlchemy):
             return cursor
 
     def execute(self, query, params: dict = None, session: Session = None, size=None,
-                cursor_close=True) -> List[Dict] or Dict or None:
+                cursor_close=True) -> List[RowProxy] or RowProxy or None:
         """
         插入数据，更新或者删除数据
         Args:
@@ -350,7 +350,7 @@ class DBClient(SQLAlchemy):
             size: 查询数据大小, 默认返回所有
             cursor_close: 是否关闭游标，默认关闭，如果多次读取可以改为false，后面关闭的行为交给sqlalchemy处理
         Returns:
-            List[Dict] or Dict or None
+            List[RowProxy] or RowProxy or None
         """
         params = dict(params) if isinstance(params, MutableMapping) else {}
         cursor = self._execute(query, params, session)
@@ -364,7 +364,7 @@ class DBClient(SQLAlchemy):
         if cursor_close is True:
             cursor.close()
 
-        return [dict(val) for val in resp] if size != 1 else dict(resp) if resp else None
+        return resp
 
     def gen_model(self, model_cls, suffix: str = None, **kwargs):
         """
