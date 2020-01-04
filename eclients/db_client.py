@@ -8,6 +8,7 @@
 """
 from collections import MutableMapping, MutableSequence
 from contextlib import contextmanager
+from typing import Dict, List
 
 import aelog
 from boltons.cacheutils import LRU
@@ -338,7 +339,8 @@ class DBClient(SQLAlchemy):
             session.commit()
             return cursor
 
-    def execute(self, query, params: dict = None, session: Session = None, size=None):
+    def execute(self, query, params: dict = None, session: Session = None, size=None,
+                cursor_close=True) -> List[Dict] or Dict or None:
         """
         插入数据，更新或者删除数据
         Args:
@@ -346,17 +348,21 @@ class DBClient(SQLAlchemy):
             params: SQL表达式中的参数
             session: session对象, 默认是self.session
             size: 查询数据大小, 默认返回所有
+            cursor_close: 是否关闭游标，默认关闭，如果多次读取可以改为false，后面关闭的行为交给sqlalchemy处理
         Returns:
-            不确定执行的是什么查询，直接返回ResultProxy实例
+            List[Dict] or Dict or None
         """
         params = dict(params) if isinstance(params, MutableMapping) else {}
-        with self._execute(query, params, session) as cursor:
-            if size is None:
-                resp = cursor.fetchall()
-            elif size == 1:
-                resp = cursor.fetchone()
-            else:
-                resp = cursor.fetchmany(size)
+        cursor = self._execute(query, params, session)
+        if size is None:
+            resp = cursor.fetchall()
+        elif size == 1:
+            resp = cursor.fetchone()
+        else:
+            resp = cursor.fetchmany(size)
+
+        if cursor_close is True:
+            cursor.close()
 
         return [dict(val) for val in resp] if size != 1 else dict(resp) if resp else None
 
