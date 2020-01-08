@@ -494,9 +494,9 @@ class CustomBaseQuery(BaseQuery):
             # 如果业务层有排序了，则此处不再提供排序功能
             # 如果遇到大数据量的分页查询问题时，建议关闭此处，然后再基于已有的索引分页
             if self._order_by is False or self._order_by is None:
-                select_model = self._primary_entity.selectable
+                select_model = getattr(self._primary_entity, "selectable", None)
 
-                if getattr(select_model.c, "id", None) is not None:
+                if select_model and getattr(select_model.c, "id", None) is not None:
                     self._order_by = [select_model.c.id.asc()]
 
         # 如果per_page为0,则证明要获取所有的数据，否则还是通常的逻辑
