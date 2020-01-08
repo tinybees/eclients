@@ -51,6 +51,7 @@ class DBClient(SQLAlchemy):
             bind_func: Get the implementation logic of the bound value
             kwargs: 其他参数 eg: charset,binary_prefix,pool_recycle
         """
+        self.app_ = app
         self.username = username
         self.passwd = passwd
         self.host = host
@@ -94,6 +95,7 @@ class DBClient(SQLAlchemy):
         Returns:
 
         """
+        self.app_ = app
         self.username = username or app.config.get("ECLIENTS_MYSQL_USERNAME") or self.username
         passwd = passwd or app.config.get("ECLIENTS_MYSQL_PASSWD") or self.passwd
         self.host = host or app.config.get("ECLIENTS_MYSQL_HOST") or self.host
@@ -186,8 +188,8 @@ class DBClient(SQLAlchemy):
         Returns:
 
         """
-        if bind_key and bind_key not in self.app.config['SQLALCHEMY_BINDS']:
-            self.app.config['SQLALCHEMY_BINDS'][bind_key] = self.app.config[
+        if bind_key and bind_key not in self.app_.config['SQLALCHEMY_BINDS']:
+            self.app_.config['SQLALCHEMY_BINDS'][bind_key] = self.app_.config[
                 'SQLALCHEMY_DATABASE_URI'].replace(self.dbname, f"{self.dbname}_{bind_key}")
 
         exist_bind_key = getattr(g, "bind_key", None)  # 获取已有的bind_key
