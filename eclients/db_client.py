@@ -496,7 +496,8 @@ class CustomBaseQuery(BaseQuery):
             if self._order_by is False or self._order_by is None:
                 select_model = getattr(self._primary_entity, "selectable", None)
 
-                if select_model and getattr(select_model.c, "id", None) is not None:
+                aelog.info(type(select_model))
+                if select_model is not None and getattr(select_model.c, "id", None) is not None:
                     self._order_by = [select_model.c.id.asc()]
 
         # 如果per_page为0,则证明要获取所有的数据，否则还是通常的逻辑
