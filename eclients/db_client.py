@@ -49,7 +49,7 @@ class DBClient(SQLAlchemy):
             bind_name: Binding key identifier,get from request,default project_id
             binds : Binds corresponds to  SQLALCHEMY_BINDS
             bind_func: Get the implementation logic of the bound value
-            kwargs: 其他参数 eg: charset,binary_prefix
+            kwargs: 其他参数 eg: charset,binary_prefix,pool_recycle
         """
         self.username = username
         self.passwd = passwd
@@ -65,6 +65,8 @@ class DBClient(SQLAlchemy):
         self.bind_func = kwargs.get("bind_func", None)
         self.message = kwargs.get("message", {})
         self.use_zh = kwargs.get("use_zh", True)
+        self.pool_recycle = kwargs.get("pool_recycle", 3600)
+        self.pool_recycle = self.pool_recycle if isinstance(self.pool_recycle, int) else 3600
         self.msg_zh = None
         self._sessions = {}  # 主要保存其他session
 
@@ -88,35 +90,36 @@ class DBClient(SQLAlchemy):
             is_binds: Whether to bind same table different database, default false
             bind_name: Binding key identifier,get from request
             binds : Binds corresponds to  SQLALCHEMY_BINDS
-            kwargs: 其他参数 eg: charset,binary_prefix
+            kwargs: 其他参数 eg: charset,binary_prefix,pool_recycle
         Returns:
 
         """
-        username = username or app.config.get("ECLIENTS_MYSQL_USERNAME", None) or self.username
-        passwd = passwd or app.config.get("ECLIENTS_MYSQL_PASSWD", None) or self.passwd
-        host = host or app.config.get("ECLIENTS_MYSQL_HOST", None) or self.host
-        port = port or app.config.get("ECLIENTS_MYSQL_PORT", None) or self.port
-        dbname = dbname or app.config.get("ECLIENTS_MYSQL_DBNAME", None) or self.dbname
-        pool_size = pool_size or app.config.get("ECLIENTS_MYSQL_POOL_SIZE", None) or self.pool_size
-        binds = binds or app.config.get("ECLIENTS_BINDS", None) or self.binds
-        message = kwargs.get("message") or app.config.get("ECLIENTS_MYSQL_MESSAGE", None) or self.message
-        use_zh = kwargs.get("use_zh") or app.config.get("ECLIENTS_MYSQL_MSGZH", None) or self.use_zh
-        self.is_binds = is_binds or app.config.get("ECLIENTS_IS_BINDS", None) or self.is_binds
-        self.bind_name = bind_name or app.config.get("ECLIENTS_BIND_NAME", None) or self.bind_name
-        self.bind_func = kwargs.get("bind_func", None) or self.bind_func
-        charset = kwargs.get("charset", None) or self.charset
-        binary_prefix = kwargs.get("binary_prefix", None) or self.binary_prefix
+        self.username = username or app.config.get("ECLIENTS_MYSQL_USERNAME") or self.username
+        passwd = passwd or app.config.get("ECLIENTS_MYSQL_PASSWD") or self.passwd
+        self.host = host or app.config.get("ECLIENTS_MYSQL_HOST") or self.host
+        self.port = port or app.config.get("ECLIENTS_MYSQL_PORT") or self.port
+        self.dbname = dbname or app.config.get("ECLIENTS_MYSQL_DBNAME") or self.dbname
+        self.pool_size = pool_size or app.config.get("ECLIENTS_MYSQL_POOL_SIZE") or self.pool_size
+        self.binds = binds or app.config.get("ECLIENTS_BINDS") or self.binds
+        message = kwargs.get("message") or app.config.get("ECLIENTS_MYSQL_MESSAGE") or self.message
+        use_zh = kwargs.get("use_zh") or app.config.get("ECLIENTS_MYSQL_MSGZH") or self.use_zh
+        self.is_binds = is_binds or app.config.get("ECLIENTS_IS_BINDS") or self.is_binds
+        self.bind_name = bind_name or app.config.get("ECLIENTS_BIND_NAME") or self.bind_name
+        self.bind_func = kwargs.get("bind_func") or self.bind_func
+        self.pool_recycle = kwargs.get("pool_recycle") or app.config.get("ECLIENTS_POOL_RECYCLE") or self.pool_recycle
+        self.charset = kwargs.get("charset") or self.charset
+        self.binary_prefix = kwargs.get("binary_prefix") or self.binary_prefix
 
-        passwd = passwd if passwd is None else str(passwd)
+        self.passwd = passwd if passwd is None else str(passwd)
         self.message = verify_message(mysql_msg, message)
         self.msg_zh = "msg_zh" if use_zh else "msg_en"
 
         app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://{}:{}@{}:{}/{}?charset={}&binary_prefix={}".format(
-            username, passwd, host, port, dbname, charset, binary_prefix)
-        app.config['SQLALCHEMY_BINDS'] = binds
-        app.config['SQLALCHEMY_POOL_SIZE'] = pool_size
+            self.username, self.passwd, self.host, self.port, self.dbname, self.charset, self.binary_prefix)
+        app.config['SQLALCHEMY_BINDS'] = self.binds
+        app.config['SQLALCHEMY_POOL_SIZE'] = self.pool_size
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-        app.config['SQLALCHEMY_POOL_RECYCLE'] = 3600
+        app.config['SQLALCHEMY_POOL_RECYCLE'] = self.pool_recycle
 
         def set_bind_key():
             """
@@ -137,7 +140,7 @@ class DBClient(SQLAlchemy):
                     bind_value = request.headers.get(self.bind_name) or request.args.get(self.bind_name) or None
                     if bind_value and bind_value not in app.config['SQLALCHEMY_BINDS']:
                         app.config['SQLALCHEMY_BINDS'][bind_value] = app.config[
-                            'SQLALCHEMY_DATABASE_URI'].replace(dbname, f"{dbname}_{bind_value}")
+                            'SQLALCHEMY_DATABASE_URI'].replace(self.dbname, f"{self.dbname}_{bind_value}")
                     setattr(g, "bind_key", bind_value)
 
         # Registers a function to be first run before the first request
@@ -183,6 +186,10 @@ class DBClient(SQLAlchemy):
         Returns:
 
         """
+        if bind_key and bind_key not in self.app.config['SQLALCHEMY_BINDS']:
+            self.app.config['SQLALCHEMY_BINDS'][bind_key] = self.app.config[
+                'SQLALCHEMY_DATABASE_URI'].replace(self.dbname, f"{self.dbname}_{bind_key}")
+
         exist_bind_key = getattr(g, "bind_key", None)  # 获取已有的bind_key
         g.bind_key = bind_key
         if bind_key not in self._sessions:
