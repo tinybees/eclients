@@ -365,11 +365,11 @@ class DBClient(SQLAlchemy):
         params = dict(params) if isinstance(params, MutableMapping) else {}
         cursor = self._execute(query, params, session)
         if size is None:
-            resp = cursor.fetchall()
+            resp = cursor.fetchall() if cursor.returns_rows else []
         elif size == 1:
-            resp = cursor.fetchone()
+            resp = cursor.fetchone() if cursor.returns_rows else None
         else:
-            resp = cursor.fetchmany(size)
+            resp = cursor.fetchmany(size) if cursor.returns_rows else []
 
         if cursor_close is True:
             cursor.close()

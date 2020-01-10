@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.1b3] - 2020-1-10
+
+#### Changed 
+- 优化dbclient中执行execute方法,如果没有返回行则返回None或者[]
+
 ###[1.0.1b2] - 2020-1-8
 
 #### Changed 
