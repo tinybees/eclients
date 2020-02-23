@@ -9,6 +9,7 @@
 
 import atexit
 from collections.abc import MutableMapping, MutableSequence
+from typing import Dict, List, Optional, Tuple, Union
 
 import aelog
 # noinspection PyProtectedMember
@@ -30,8 +31,8 @@ class MongoClient(object):
     mongo 工具类
     """
 
-    def __init__(self, app=None, *, username="mongo", passwd=None, host="127.0.0.1", port=27017, dbname=None,
-                 pool_size=50, **kwargs):
+    def __init__(self, app=None, *, username: str = "mongo", passwd: str = None, host: str = "127.0.0.1",
+                 port: int = 27017, dbname: str = None, pool_size: int = 50, **kwargs):
         """
         mongo 工具类
         Args:
@@ -59,8 +60,8 @@ class MongoClient(object):
             self.init_app(app, username=self.username, passwd=self.passwd, host=self.host, port=self.port,
                           dbname=self.dbname, pool_size=self.pool_size, **kwargs)
 
-    def init_app(self, app, *, username=None, passwd=None, host=None, port=None, dbname=None,
-                 pool_size=None, **kwargs):
+    def init_app(self, app, *, username: str = None, passwd: str = None, host: str = None, port: int = None,
+                 dbname: str = None, pool_size: int = None, **kwargs):
         """
         mongo 实例初始化
         Args:
@@ -120,8 +121,8 @@ class MongoClient(object):
             if self.client:
                 self.client.close()
 
-    def init_engine(self, *, username=None, passwd=None, host=None, port=None, dbname=None,
-                    pool_size=None, **kwargs):
+    def init_engine(self, *, username: str = None, passwd: str = None, host: str = None, port: int = None,
+                    dbname: str = None, pool_size: int = None, **kwargs):
         """
         mongo 实例初始化
         Args:
@@ -170,7 +171,8 @@ class MongoClient(object):
             if self.client:
                 self.client.close()
 
-    def _insert_document(self, name, document, insert_one=True):
+    def _insert_document(self, name: str, document: Union[List[Dict], Dict], insert_one: bool = True
+                         ) -> Union[Tuple[str], str]:
         """
         插入一个单独的文档
         Args:
@@ -195,7 +197,7 @@ class MongoClient(object):
         else:
             return str(result.inserted_id) if insert_one else (str(val) for val in result.inserted_ids)
 
-    def _insert_documents(self, name, documents):
+    def _insert_documents(self, name: str, documents: List[Dict]) -> Tuple[str]:
         """
         批量插入文档
         Args:
@@ -206,7 +208,7 @@ class MongoClient(object):
         """
         return self._insert_document(name, documents, insert_one=False)
 
-    def _find_document(self, name, query_key, filter_key=None):
+    def _find_document(self, name: str, query_key: Dict, filter_key: Dict = None) -> Optional[Dict]:
         """
         查询一个单独的document文档
         Args:
@@ -228,7 +230,8 @@ class MongoClient(object):
                 find_data["id"] = str(find_data.pop("_id"))
             return find_data
 
-    def _find_documents(self, name, query_key, filter_key=None, limit=None, skip=None, sort=None):
+    def _find_documents(self, name: str, query_key: Dict, filter_key: Dict = None, limit: int = None,
+                        skip: int = None, sort: List[Tuple] = None) -> List[Dict]:
         """
         批量查询documents文档
         Args:
@@ -257,7 +260,7 @@ class MongoClient(object):
         else:
             return find_data
 
-    def _find_count(self, name, query_key):
+    def _find_count(self, name: str, query_key: Dict) -> int:
         """
         查询documents的数量
         Args:
@@ -274,7 +277,8 @@ class MongoClient(object):
             aelog.exception("Find many documents failed, {}".format(err))
             raise HttpError(400, message=mongo_msg[104][self.msg_zh])
 
-    def _update_document(self, name, query_key: dict, update_data: dict, upsert=False, update_one=True):
+    def _update_document(self, name: str, query_key: Dict, update_data: Dict, upsert: bool = False,
+                         update_one: bool = True) -> Dict:
         """
         更新匹配到的一个的document
         Args:
@@ -302,7 +306,7 @@ class MongoClient(object):
             return {"matched_count": result.matched_count, "modified_count": result.modified_count,
                     "upserted_id": str(result.upserted_id) if result.upserted_id else None}
 
-    def _update_documents(self, name, query_key: dict, update_data: dict, upsert=False):
+    def _update_documents(self, name: str, query_key: Dict, update_data: Dict, upsert: bool = False) -> Dict:
         """
         更新匹配到的所有的document
         Args:
@@ -315,7 +319,7 @@ class MongoClient(object):
         """
         return self._update_document(name, query_key, update_data, upsert, update_one=False)
 
-    def _delete_document(self, name, query_key, delete_one=True):
+    def _delete_document(self, name: str, query_key: Dict, delete_one: bool = True) -> int:
         """
         删除匹配到的一个的document
         Args:
@@ -338,7 +342,7 @@ class MongoClient(object):
         else:
             return result.deleted_count
 
-    def _delete_documents(self, name, query_key):
+    def _delete_documents(self, name: str, query_key: Dict) -> int:
         """
         删除匹配到的所有的document
         Args:
@@ -349,7 +353,7 @@ class MongoClient(object):
         """
         return self._delete_document(name, query_key, delete_one=False)
 
-    def _aggregate(self, name, pipline):
+    def _aggregate(self, name: str, pipline: List[Dict]) -> List[Dict]:
         """
         根据pipline进行聚合查询
         Args:
@@ -373,7 +377,7 @@ class MongoClient(object):
             return result
 
     @staticmethod
-    def _update_update_data(update_data):
+    def _update_update_data(update_data: Dict) -> Dict:
         """
         处理update data, 包装最常使用的操作
         Args:
@@ -392,7 +396,7 @@ class MongoClient(object):
         return update_data
 
     @staticmethod
-    def _update_query_key(query_key):
+    def _update_query_key(query_key: Dict) -> Dict:
         """
         更新查询的query
         Args:
@@ -419,7 +423,7 @@ class MongoClient(object):
             return query_key
 
     @staticmethod
-    def _update_doc_id(document):
+    def _update_doc_id(document: Dict) -> Dict:
         """
         修改文档中的_id
         Args:
@@ -434,7 +438,7 @@ class MongoClient(object):
                 raise FuncArgsError(str(e))
         return document
 
-    def insert_documents(self, name: str, documents: dict):
+    def insert_documents(self, name: str, documents: List[Dict]) -> Tuple[str]:
         """
         批量插入文档
         Args:
@@ -454,7 +458,7 @@ class MongoClient(object):
             self._update_doc_id(document)
         return self._insert_documents(name, documents)
 
-    def insert_document(self, name: str, document: dict):
+    def insert_document(self, name: str, document: Dict) -> str:
         """
         插入一个单独的文档
         Args:
@@ -469,7 +473,7 @@ class MongoClient(object):
         document = dict(document)
         return self._insert_document(name, self._update_doc_id(document))
 
-    def find_document(self, name: str, query_key: dict = None, filter_key: dict = None):
+    def find_document(self, name: str, query_key: Dict = None, filter_key: Dict = None) -> Optional[Dict]:
         """
         查询一个单独的document文档
         Args:
@@ -481,8 +485,8 @@ class MongoClient(object):
         """
         return self._find_document(name, self._update_query_key(query_key), filter_key=filter_key)
 
-    def find_documents(self, name: str, query_key: dict = None, filter_key: dict = None, limit=0, page=1,
-                       sort=None):
+    def find_documents(self, name: str, query_key: Dict = None, filter_key: Dict = None, limit: int = 0,
+                       page: int = 1, sort: List[Tuple] = None) -> List[Dict]:
         """
         批量查询documents文档
         Args:
@@ -499,7 +503,7 @@ class MongoClient(object):
         return self._find_documents(name, self._update_query_key(query_key), filter_key=filter_key, limit=int(limit),
                                     skip=skip, sort=sort)
 
-    def find_count(self, name: str, query_key: dict = None):
+    def find_count(self, name: str, query_key: Dict = None) -> int:
         """
         查询documents的数量
         Args:
@@ -510,7 +514,7 @@ class MongoClient(object):
         """
         return self._find_count(name, self._update_query_key(query_key))
 
-    def update_documents(self, name: str, query_key: dict, update_data: dict, upsert: bool = False):
+    def update_documents(self, name: str, query_key: Dict, update_data: Dict, upsert: bool = False) -> Dict:
         """
         更新匹配到的所有的document
         Args:
@@ -525,7 +529,7 @@ class MongoClient(object):
         return self._update_documents(name, self._update_query_key(query_key),
                                       self._update_update_data(update_data), upsert=upsert)
 
-    def update_document(self, name: str, query_key: dict, update_data: dict, upsert: bool = False):
+    def update_document(self, name: str, query_key: Dict, update_data: Dict, upsert: bool = False) -> Dict:
         """
         更新匹配到的一个的document
         Args:
@@ -540,7 +544,7 @@ class MongoClient(object):
         return self._update_document(name, self._update_query_key(query_key),
                                      self._update_update_data(update_data), upsert=upsert)
 
-    def delete_documents(self, name: str, query_key: dict):
+    def delete_documents(self, name: str, query_key: Dict) -> int:
         """
         删除匹配到的所有的document
         Args:
@@ -551,7 +555,7 @@ class MongoClient(object):
         """
         return self._delete_documents(name, self._update_query_key(query_key))
 
-    def delete_document(self, name: str, query_key: dict):
+    def delete_document(self, name: str, query_key: Dict) -> int:
         """
         删除匹配到的一个的document
         Args:
@@ -562,7 +566,7 @@ class MongoClient(object):
         """
         return self._delete_document(name, self._update_query_key(query_key))
 
-    def aggregate(self, name: str, pipline: list, page=None, limit=None):
+    def aggregate(self, name: str, pipline: List[Dict], page: int = None, limit: int = None) -> List[Dict]:
         """
         根据pipline进行聚合查询
         Args:

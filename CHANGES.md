@@ -1,5 +1,15 @@
 ## aeclients Changelog
 
+###[1.0.1b4] - 2020-2-23
+
+#### Added 
+- 增加jrpc客户端单个方法请求的功能,调用形式和普通的函数调用形式一致
+- 增加jrpc客户端批量方法请求的功能,调用形式类似链式调用
+- 增加jrpc服务端jsonrpc子类, http和websocket的URL固定和client中的一致
+
+#### Changed 
+- 优化所有代码中没有类型标注的地方,都改为typing中的类型标注
+
 ###[1.0.1b3] - 2020-1-10
 
 #### Changed 

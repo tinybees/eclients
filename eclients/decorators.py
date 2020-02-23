@@ -6,7 +6,9 @@
 @software: PyCharm
 @time: 19-1-21 下午6:47
 """
+import weakref
 from functools import wraps
+from typing import Dict, Union
 
 import aelog
 from flask import g, request
@@ -16,7 +18,7 @@ from .err_msg import schema_msg
 from .exceptions import FuncArgsError, HttpError
 from .utils import verify_message
 
-__all__ = ("singleton", "schema_validate", "Singleton")
+__all__ = ("singleton", "schema_validate", "Singleton", "Cached")
 
 
 def singleton(cls):
@@ -56,12 +58,31 @@ class _Singleton(type):
             return cls.__instance
 
 
+class _Cached(type):
+    def __init__(cls, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cls.__cache = weakref.WeakValueDictionary()
+
+    def __call__(cls, *args, **kwargs):
+        cached_name = f"{args}{kwargs}"
+        if cached_name in cls.__cache:
+            return cls.__cache[cached_name]
+        else:
+            obj = super().__call__(*args, **kwargs)
+            cls.__cache[cached_name] = obj  # 这里是弱引用不能直接赋值，否则会被垃圾回收期回收
+            return obj
+
+
 class Singleton(metaclass=_Singleton):
     pass
 
 
-def schema_validate(schema_obj, required: (tuple, list) = tuple(), is_extends=True, excluded: (tuple, list) = tuple(),
-                    use_zh=True, message=None):
+class Cached(metaclass=_Cached):
+    pass
+
+
+def schema_validate(schema_obj, required: Union[tuple, list] = tuple(), is_extends: bool = True,
+                    excluded: Union[tuple, list] = tuple(), use_zh: bool = True, message: Dict = None):
     """
     校验post的json格式和类型是否正确
     Args:

@@ -14,6 +14,7 @@ import sys
 from collections import MutableMapping, MutableSequence
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from typing import Callable, Dict, List, NoReturn, Union
 
 import aelog
 import redis
@@ -47,7 +48,8 @@ def apscheduler_warkup_job(scheduler):
 
 
 # noinspection PyProtectedMember
-def apscheduler_start(app_: Flask, scheduler, is_warkup=True, warkup_func=None, warkup_seconds=3600):
+def apscheduler_start(app_: Flask, scheduler, is_warkup: bool = True, warkup_func: Callable = None,
+                      warkup_seconds: int = 3600) -> NoReturn:
     """
     apscheduler的启动方法，利用redis解决多进程多实例的问题
 
@@ -115,7 +117,7 @@ def apscheduler_start(app_: Flask, scheduler, is_warkup=True, warkup_func=None, 
                 rdb_.connection_pool.disconnect()
 
 
-def pool_submit(func, *args, task_name="", **kwargs):
+def pool_submit(func: Callable, *args, task_name: str = "", **kwargs):
     """
     执行长时间任务的线程调度方法
     Args:
@@ -143,7 +145,7 @@ def pool_submit(func, *args, task_name="", **kwargs):
     future_result.add_done_callback(callback_done)
 
 
-def gen_ident(ident_len=8):
+def gen_ident(ident_len: int = 8):
     """
     获取随机的标识码以字母开头， 默认8个字符的长度
     Args:
@@ -173,7 +175,7 @@ def ignore_error(error=Exception):
         pass
 
 
-def verify_message(src_message: dict, message: list or dict):
+def verify_message(src_message: Dict, message: Union[List, Dict]) -> Union[List, Dict]:
     """
     对用户提供的message进行校验
     Args:
@@ -193,7 +195,7 @@ def verify_message(src_message: dict, message: list or dict):
     return src_message
 
 
-def gen_class_name(underline_name):
+def gen_class_name(underline_name: str) -> str:
     """
     由下划线的名称变为驼峰的名称
     Args:
@@ -204,7 +206,7 @@ def gen_class_name(underline_name):
     return "".join(name.capitalize() for name in underline_name.split("_"))
 
 
-def analysis_yaml(full_conf_path):
+def analysis_yaml(full_conf_path: str) -> Dict:
     """
     解析yaml文件
     Args:
@@ -221,7 +223,7 @@ def analysis_yaml(full_conf_path):
     return conf
 
 
-def objectid():
+def objectid() -> str:
     """
 
     Args:
@@ -232,7 +234,7 @@ def objectid():
     return str(ObjectId())
 
 
-def number(str_value: str, default=0):
+def number(str_value: str, default: int = 0) -> Union[int, float]:
     """
     把字符串值转换为int或者float
     Args:

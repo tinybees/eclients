@@ -12,4 +12,4 @@ from .http_client import *
 from .db_client import *
 from .redis_client import *
 
-__version__ = "1.0.1b3"
+__version__ = "1.0.1b4"

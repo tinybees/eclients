@@ -8,7 +8,7 @@
 """
 from collections import MutableMapping, MutableSequence
 from contextlib import contextmanager
-from typing import List
+from typing import Dict, List, NoReturn, Union
 
 import aelog
 from boltons.cacheutils import LRU
@@ -16,7 +16,7 @@ from flask import abort, g, request
 from flask_sqlalchemy import BaseQuery, Pagination, SQLAlchemy
 from sqlalchemy.engine.result import ResultProxy, RowProxy
 from sqlalchemy.exc import DatabaseError, IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Query, Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.schema import Table
 
@@ -34,8 +34,9 @@ class DBClient(SQLAlchemy):
     DB同步操作指南
     """
 
-    def __init__(self, app=None, *, username="root", passwd=None, host="127.0.0.1", port=3306, dbname=None,
-                 pool_size=50, is_binds=False, bind_name="project_id", binds=None, **kwargs):
+    def __init__(self, app=None, *, username: str = "root", passwd: str = None, host: str = "127.0.0.1",
+                 port: int = 3306, dbname: str = None, pool_size: int = 50, is_binds: bool = False,
+                 bind_name: str = "project_id", binds: str = None, **kwargs):
         """
         DB同步操作指南
         Args:
@@ -76,8 +77,9 @@ class DBClient(SQLAlchemy):
         # 但是从Model的初始化看,如果Model的query_class为None的话还是会设置为和Query一致，符合要求
         super().__init__(app, query_class=CustomBaseQuery)
 
-    def init_app(self, app, username=None, passwd=None, host=None, port=None, dbname=None, pool_size=None,
-                 is_binds=None, bind_name="", binds=None, **kwargs):
+    def init_app(self, app, username: str = None, passwd: str = None, host: str = None, port: int = None,
+                 dbname: str = None, pool_size: int = None, is_binds: bool = None, bind_name: str = "",
+                 binds: str = None, **kwargs):
         """
         mysql 实例初始化
 
@@ -178,7 +180,7 @@ class DBClient(SQLAlchemy):
             _lru_cache[bind_name] = super().get_binds(app)
         return _lru_cache[bind_name]
 
-    def gen_session(self, bind_key, session_options=None) -> Session:
+    def gen_session(self, bind_key: str, session_options: Dict = None) -> Session:
         """
         创建或者获取指定的session,这里是session非sessionmaker
 
@@ -202,7 +204,7 @@ class DBClient(SQLAlchemy):
 
         return session
 
-    def save(self, model_obj, session=None):
+    def save(self, model_obj, session: Session = None) -> NoReturn:
         """
         保存model对象
         Args:
@@ -213,7 +215,7 @@ class DBClient(SQLAlchemy):
         """
         self.session.add(model_obj) if session is None else session.add(model_obj)
 
-    def save_all(self, model_objs: MutableSequence, session=None):
+    def save_all(self, model_objs: MutableSequence, session: Session = None) -> NoReturn:
         """
         保存model对象
         Args:
@@ -226,7 +228,7 @@ class DBClient(SQLAlchemy):
             raise ValueError(f"model_objs应该是MutableSequence类型的")
         self.session.add_all(model_objs) if session is None else session.add_all(model_objs)
 
-    def delete(self, model_obj, session=None):
+    def delete(self, model_obj, session: Session = None) -> NoReturn:
         """
         删除model对象
         Args:
@@ -238,7 +240,7 @@ class DBClient(SQLAlchemy):
         self.session.delete(model_obj) if session is None else session.delete(model_obj)
 
     @contextmanager
-    def insert_context(self, session=None):
+    def insert_context(self, session: Session = None) -> 'DBClient':
         """
         插入数据context
         Args:
@@ -267,7 +269,7 @@ class DBClient(SQLAlchemy):
             session.commit()
 
     @contextmanager
-    def update_context(self, session=None):
+    def update_context(self, session: Session = None) -> 'DBClient':
         """
         更新数据context
         Args:
@@ -296,7 +298,7 @@ class DBClient(SQLAlchemy):
             session.commit()
 
     @contextmanager
-    def delete_context(self, session=None):
+    def delete_context(self, session: Session = None) -> 'DBClient':
         """
         删除数据context
         Args:
@@ -318,7 +320,7 @@ class DBClient(SQLAlchemy):
         else:
             session.commit()
 
-    def _execute(self, query, params: dict = None, session: Session = None) -> ResultProxy:
+    def _execute(self, query: Union[Query, str], params: Dict = None, session: Session = None) -> ResultProxy:
         """
         插入数据，更新或者删除数据
         Args:
@@ -349,8 +351,8 @@ class DBClient(SQLAlchemy):
             session.commit()
             return cursor
 
-    def execute(self, query, params: dict = None, session: Session = None, size=None,
-                cursor_close=True) -> List[RowProxy] or RowProxy or None:
+    def execute(self, query: Union[Query, str], params: Dict = None, session: Session = None, size: int = None,
+                cursor_close: bool = True) -> Union[List[RowProxy], RowProxy, None]:
         """
         插入数据，更新或者删除数据
         Args:
@@ -425,8 +427,8 @@ class CustomBaseQuery(BaseQuery):
     目前是改造如果limit传递为0，则返回所有的数据，这样业务代码中就不用更改了
     """
 
-    def paginate(self, page=None, per_page=None, error_out=True, max_per_page=None,
-                 primary_order=True) -> Pagination:
+    def paginate(self, page: int = None, per_page: int = None, error_out: bool = True,
+                 max_per_page: int = None, primary_order: bool = True) -> Pagination:
         """Returns ``per_page`` items from page ``page``.
 
         If ``page`` or ``per_page`` are ``None``, they will be retrieved from

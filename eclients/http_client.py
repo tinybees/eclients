@@ -7,6 +7,7 @@
 @time: 18-7-1 上午10:08
 """
 import atexit
+from typing import Dict
 
 import requests as sync_requests
 from requests.exceptions import ConnectTimeout, ConnectionError, HTTPError, RequestException, Timeout
@@ -25,7 +26,8 @@ class Response(object):
     """
     __slots__ = ["status_code", "reason", "headers", "cookies", "resp_body", "content"]
 
-    def __init__(self, status_code, reason, headers, cookies, *, resp_body, content):
+    def __init__(self, status_code: int, reason: str, headers: Dict, cookies: Dict, *, resp_body: Dict,
+                 content: bytes):
         """
 
         Args:
@@ -54,7 +56,8 @@ class HttpClient(Singleton):
     基于requests的同步封装
     """
 
-    def __init__(self, app=None, *, timeout=5 * 60, verify_ssl=True, message=None, use_zh=True):
+    def __init__(self, app=None, *, timeout: int = 5 * 60, verify_ssl: bool = True, message: Dict = None,
+                 use_zh: bool = True):
         """
         基于requests的同步封装
         Args:
@@ -76,7 +79,8 @@ class HttpClient(Singleton):
             self.init_app(app, timeout=self.timeout, verify_ssl=self.verify_ssl, message=self.message,
                           use_zh=self.use_zh)
 
-    def init_app(self, app, *, timeout=None, verify_ssl=None, message=None, use_zh=None):
+    def init_app(self, app, *, timeout: int = None, verify_ssl: bool = None, message: Dict = None,
+                 use_zh: bool = None):
         """
         基于aiohttp的异步封装
         Args:
@@ -119,7 +123,8 @@ class HttpClient(Singleton):
             if self.session:
                 self.session.close()
 
-    def init_session(self, *, timeout=None, verify_ssl=None, message=None, use_zh=None):
+    def init_session(self, *, timeout: int = None, verify_ssl: bool = None, message: Dict = None,
+                     use_zh: bool = None):
         """
         基于aiohttp的异步封装
         Args:
@@ -149,8 +154,8 @@ class HttpClient(Singleton):
             if self.session:
                 self.session.close()
 
-    def _request(self, method, url, *, params=None, data=None, json=None, headers=None, verify_ssl=None,
-                 timeout=None, **kwargs):
+    def _request(self, method: str, url: str, *, params: Dict = None, data: Dict = None, json: Dict = None,
+                 headers: Dict = None, verify_ssl: bool = None, timeout: int = None, **kwargs) -> Response:
         """
 
         Args:
@@ -251,8 +256,8 @@ class HttpClient(Singleton):
                 return Response(resp.status_code, resp.reason, resp.headers, resp.cookies, resp_body=resp_json,
                                 content=b"")
 
-    def request(self, method, url, *, params=None, data=None, json=None, headers=None, verify_ssl=None,
-                timeout=None, **kwargs) -> Response:
+    def request(self, method: str, url: str, *, params: Dict = None, data: Dict = None, json: Dict = None,
+                headers: Dict = None, verify_ssl: bool = None, timeout: int = None, **kwargs) -> Response:
         """
 
         Args:
@@ -265,7 +270,8 @@ class HttpClient(Singleton):
         return self._request(method, url, params=params, data=data, json=json, headers=headers,
                              verify_ssl=verify_ssl, timeout=timeout, **kwargs)
 
-    def get(self, url, *, params=None, headers=None, verify_ssl=None, timeout=None, **kwargs) -> Response:
+    def get(self, url: str, *, params: Dict = None, headers: Dict = None, verify_ssl: bool = None,
+            timeout: int = None, **kwargs) -> Response:
         """
 
         Args:
@@ -278,8 +284,8 @@ class HttpClient(Singleton):
         return self._request("GET", url, params=params, verify_ssl=verify_ssl, headers=headers,
                              timeout=timeout, **kwargs)
 
-    def post(self, url, *, params=None, data=None, json=None, headers=None, verify_ssl=None, timeout=None,
-             **kwargs) -> Response:
+    def post(self, url: str, *, params: Dict = None, data: Dict = None, json: Dict = None, headers: Dict = None,
+             verify_ssl: bool = None, timeout: int = None, **kwargs) -> Response:
         """
 
         Args:
@@ -292,8 +298,8 @@ class HttpClient(Singleton):
         return self._request("POST", url, params=params, data=data, json=json, headers=headers, verify_ssl=verify_ssl,
                              timeout=timeout, **kwargs)
 
-    def put(self, url, *, params=None, data=None, json=None, headers=None, verify_ssl=None, timeout=None,
-            **kwargs) -> Response:
+    def put(self, url: str, *, params: Dict = None, data: Dict = None, json: Dict = None, headers: Dict = None,
+            verify_ssl: bool = None, timeout: int = None, **kwargs) -> Response:
         """
 
         Args:
@@ -306,8 +312,8 @@ class HttpClient(Singleton):
         return self._request("PUT", url, params=params, data=data, json=json, headers=headers, verify_ssl=verify_ssl,
                              timeout=timeout, **kwargs)
 
-    def patch(self, url, *, params=None, data=None, json=None, headers=None, verify_ssl=None, timeout=None,
-              **kwargs) -> Response:
+    def patch(self, url: str, *, params: Dict = None, data: Dict = None, json: Dict = None, headers: Dict = None,
+              verify_ssl: bool = None, timeout: int = None, **kwargs) -> Response:
         """
 
         Args:
@@ -320,7 +326,8 @@ class HttpClient(Singleton):
         return self._request("PATCH", url, params=params, data=data, json=json, headers=headers, verify_ssl=verify_ssl,
                              timeout=timeout, **kwargs)
 
-    def delete(self, url, *, params=None, headers=None, verify_ssl=None, timeout=None, **kwargs) -> Response:
+    def delete(self, url: str, *, params: Dict = None, headers: Dict = None, verify_ssl: bool = None,
+               timeout: int = None, **kwargs) -> Response:
         """
 
         Args:

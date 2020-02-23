@@ -8,13 +8,13 @@
 """
 import atexit
 import secrets
-import ujson
 import uuid
 from collections import MutableMapping
-from typing import Dict
+from typing import Any, Dict, List, NoReturn, Union
 
 import aelog
 import redis
+import ujson
 from redis import RedisError
 
 from .exceptions import RedisClientError
@@ -22,9 +22,9 @@ from .utils import ignore_error
 
 __all__ = ("Session", "RedisClient")
 
-LONG_EXPIRED = 24 * 60 * 60  # 最长过期时间
-EXPIRED = 12 * 60 * 60  # 通用过期时间
-SESSION_EXPIRED = 30 * 60  # session过期时间
+LONG_EXPIRED: int = 24 * 60 * 60  # 最长过期时间
+EXPIRED: int = 12 * 60 * 60  # 通用过期时间
+SESSION_EXPIRED: int = 30 * 60  # session过期时间
 
 
 class Session(object):
@@ -34,7 +34,8 @@ class Session(object):
 
     """
 
-    def __init__(self, account_id, *, session_id=None, org_id=None, role_id=None, permission_id=None, **kwargs):
+    def __init__(self, account_id: str, *, session_id: str = None, org_id: str = None, role_id: str = None,
+                 permission_id: str = None, **kwargs):
         self.account_id = account_id  # 账户ID
         self.session_id = secrets.token_urlsafe() if not session_id else session_id  # session ID
         self.org_id = org_id or uuid.uuid4().hex  # 账户的组织结构在redis中的ID
@@ -53,7 +54,8 @@ class RedisClient(object):
     redis 工具类
     """
 
-    def __init__(self, app=None, *, host="127.0.0.1", port=6379, dbname=0, passwd="", pool_size=50):
+    def __init__(self, app=None, *, host: str = "127.0.0.1", port: int = 6379, dbname: int = 0, passwd: str = "",
+                 pool_size: int = 50):
         """
         redis 工具类
         Args:
@@ -77,7 +79,8 @@ class RedisClient(object):
             self.init_app(app, host=self.host, port=self.port, dbname=self.dbname, passwd=self.passwd,
                           pool_size=self.pool_size)
 
-    def init_app(self, app, *, host=None, port=None, dbname=None, passwd="", pool_size=None):
+    def init_app(self, app, *, host: str = None, port: int = None, dbname: int = None, passwd: str = "",
+                 pool_size: int = None):
         """
         redis 工具类
         Args:
@@ -125,7 +128,8 @@ class RedisClient(object):
             if self.pool:
                 self.pool.disconnect()
 
-    def init_engine(self, *, host=None, port=None, dbname=None, passwd="", pool_size=None):
+    def init_engine(self, *, host: str = None, port: int = None, dbname: int = None, passwd: str = "",
+                    pool_size: int = None):
         """
         redis 工具类
         Args:
@@ -162,7 +166,7 @@ class RedisClient(object):
             if self.pool:
                 self.pool.disconnect()
 
-    def save_session(self, session: Session, dump_responses=False, ex=SESSION_EXPIRED):
+    def save_session(self, session: Session, dump_responses: bool = False, ex: int = SESSION_EXPIRED) -> str:
         """
         利用hash map保存session
         Args:
@@ -172,17 +176,8 @@ class RedisClient(object):
         Returns:
 
         """
-        session_data = dict(vars(session))
-        # 是否对每个键值进行dump
-        if dump_responses:
-            hash_data = {}
-            for hash_key, hash_val in session_data.items():
-                if not isinstance(hash_val, str):
-                    with ignore_error():
-                        hash_val = ujson.dumps(hash_val)
-                hash_data[hash_key] = hash_val
-            session_data = hash_data
-
+        session_data = self.response_dumps(dump_responses, session)
+        
         try:
             if not self.redis_db.hmset(session_data["session_id"], session_data):
                 raise RedisClientError("save session failed, session_id={}".format(session_data["session_id"]))
@@ -205,7 +200,21 @@ class RedisClient(object):
                                        hash_data=session.session_id, ex=LONG_EXPIRED)
             return session.session_id
 
-    def delete_session(self, session_id, delete_key: bool = True):
+    @staticmethod
+    def response_dumps(dump_responses: bool, session: Session) -> Dict:
+        session_data = dict(vars(session))
+        # 是否对每个键值进行dump
+        if dump_responses:
+            hash_data = {}
+            for hash_key, hash_val in session_data.items():
+                if not isinstance(hash_val, str):
+                    with ignore_error():
+                        hash_val = ujson.dumps(hash_val)
+                hash_data[hash_key] = hash_val
+            session_data = hash_data
+        return session_data
+
+    def delete_session(self, session_id: str, delete_key: bool = True) -> NoReturn:
         """
         利用hash map删除session
         Args:
@@ -240,7 +249,7 @@ class RedisClient(object):
             aelog.exception("delete session error: {}, {}".format(session_id, e))
             raise RedisClientError(str(e))
 
-    def update_session(self, session: Session, dump_responses=False, ex=SESSION_EXPIRED):
+    def update_session(self, session: Session, dump_responses: bool = False, ex: int = SESSION_EXPIRED) -> NoReturn:
         """
         利用hash map更新session
         Args:
@@ -250,16 +259,7 @@ class RedisClient(object):
         Returns:
 
         """
-        session_data = dict(vars(session))
-        # 是否对每个键值进行dump
-        if dump_responses:
-            hash_data = {}
-            for hash_key, hash_val in session_data.items():
-                if not isinstance(hash_val, str):
-                    with ignore_error():
-                        hash_val = ujson.dumps(hash_val)
-                hash_data[hash_key] = hash_val
-            session_data = hash_data
+        session_data = self.response_dumps(dump_responses, session)
 
         try:
             if not self.redis_db.hmset(session_data["session_id"], session_data):
@@ -274,8 +274,8 @@ class RedisClient(object):
             self.save_update_hash_data(self._account_key, field_name=session.account_id,
                                        hash_data=session.session_id, ex=LONG_EXPIRED)
 
-    def get_session(self, session_id, ex=SESSION_EXPIRED, cls_flag=True, load_responses=False
-                    ) -> Session or Dict[str, str]:
+    def get_session(self, session_id: str, ex: int = SESSION_EXPIRED, cls_flag: bool = True,
+                    load_responses: bool = False) -> Union[Session, Dict[str, str]]:
         """
         获取session
         Args:
@@ -314,7 +314,7 @@ class RedisClient(object):
             else:
                 return session_data
 
-    def verify(self, session_id):
+    def verify(self, session_id: str) -> Session:
         """
         校验session，主要用于登录校验
         Args:
@@ -331,7 +331,8 @@ class RedisClient(object):
                 raise RedisClientError("invalid session_id, session_id={}".format(session_id))
             return session
 
-    def save_update_hash_data(self, name, hash_data: dict, field_name=None, dump_responses=False, ex=EXPIRED):
+    def save_update_hash_data(self, name: str, hash_data: Dict, field_name: str = None, dump_responses: bool = False,
+                              ex: int = EXPIRED) -> str:
         """
         获取hash对象field_name对应的值
         Args:
@@ -371,7 +372,8 @@ class RedisClient(object):
         else:
             return name
 
-    def get_hash_data(self, name, field_name=None, load_responses=False, ex=EXPIRED):
+    def get_hash_data(self, name: str, field_name: str = None, load_responses: bool = False,
+                      ex: int = EXPIRED) -> Dict:
         """
         获取hash对象field_name对应的值
         Args:
@@ -409,7 +411,7 @@ class RedisClient(object):
         else:
             return hash_data
 
-    def get_list_data(self, name, start=0, end=-1, ex=EXPIRED):
+    def get_list_data(self, name: str, start: int = 0, end: int = -1, ex: int = EXPIRED) -> List:
         """
         获取redis的列表中的数据
         Args:
@@ -429,7 +431,8 @@ class RedisClient(object):
         else:
             return data
 
-    def save_list_data(self, name, list_data: list or str, save_to_left=True, ex=EXPIRED):
+    def save_list_data(self, name: str, list_data: Union[List, str], save_to_left: bool = True,
+                       ex: int = EXPIRED) -> str:
         """
         保存数据到redis的列表中
         Args:
@@ -455,7 +458,7 @@ class RedisClient(object):
         else:
             return name
 
-    def save_update_usual_data(self, name, value, ex=EXPIRED):
+    def save_update_usual_data(self, name: str, value: Any, ex: int = EXPIRED) -> str:
         """
         保存列表、映射对象为普通的字符串
         Args:
@@ -474,7 +477,7 @@ class RedisClient(object):
         else:
             return name
 
-    def incrbynumber(self, name, amount=1, ex=EXPIRED):
+    def incrbynumber(self, name: str, amount: int = 1, ex: int = EXPIRED) -> str:
         """
 
         Args:
@@ -496,7 +499,8 @@ class RedisClient(object):
         else:
             return name
 
-    def get_usual_data(self, name, load_responses=True, update_expire=True, ex=EXPIRED):
+    def get_usual_data(self, name: str, load_responses: bool = True, update_expire: bool = True,
+                       ex: int = EXPIRED) -> Union[Dict, str]:
         """
         获取name对应的值
         Args:
@@ -519,7 +523,7 @@ class RedisClient(object):
 
         return data
 
-    def is_exist_key(self, name):
+    def is_exist_key(self, name: str) -> bool:
         """
         判断redis key是否存在
         Args:
@@ -529,7 +533,7 @@ class RedisClient(object):
         """
         return self.redis_db.exists(name)
 
-    def delete_keys(self, names: list):
+    def delete_keys(self, names: List[str]) -> NoReturn:
         """
         删除一个或多个redis key
         Args:
@@ -541,7 +545,7 @@ class RedisClient(object):
         if not self.redis_db.delete(*names):
             aelog.error("Delete redis keys failed {}.".format(*names))
 
-    def get_keys(self, pattern_name) -> list:
+    def get_keys(self, pattern_name: str) -> List:
         """
         根据正则表达式获取redis的keys
         Args:
