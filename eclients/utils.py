@@ -153,7 +153,6 @@ def gen_ident(ident_len: int = 8):
     Returns:
 
     """
-    ident_len = ident_len - 1
     alphabet = f"{string.ascii_lowercase}{string.digits}"
     ident = ''.join(secrets.choice(alphabet) for _ in range(ident_len))
     return f"{secrets.choice(string.ascii_lowercase)}{ident}"
@@ -255,5 +254,4 @@ def number(str_value: str, default: int = 0) -> Union[int, float]:
     elif isinstance(str_value, (int, float)):
         return str_value
     else:
-        aelog.error(f"{str_value}的值非Number类型，转换失败，将按照{default}处理")
         return default
