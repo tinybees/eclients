@@ -8,6 +8,7 @@
 """
 import atexit
 import multiprocessing
+import os
 import secrets
 import string
 import sys
@@ -65,12 +66,36 @@ def apscheduler_start(app_: Flask, scheduler, is_warkup: bool = True, warkup_fun
     Returns:
 
     """
+
+    def remove_apscheduler():
+        """
+        移除redis中保存的标记
+        Args:
+
+        Returns:
+
+        """
+        rdb_ = None
+        try:
+            rdb_ = redis.StrictRedis(
+                host=app_.config["ECLIENTS_REDIS_HOST"], port=app_.config["ECLIENTS_REDIS_PORT"],
+                db=2, password=app_.config["ECLIENTS_REDIS_PASSWD"], decode_responses=True)
+        except RedisError as err:
+            aelog.exception(err)
+        else:
+            with ignore_error():
+                rdb_.delete("apscheduler")
+                aelog.info(f"当前进程{os.getpid()}清除redis[2]任务标记[apscheduler].")
+        finally:
+            if rdb_:
+                rdb_.connection_pool.disconnect()
+
     try:
         from flask_apscheduler import APScheduler
         if not isinstance(scheduler, APScheduler):
             raise ValueError("scheduler类型错误")
     except ImportError as e:
-        raise ImportError(e)
+        raise ImportError(f"please install flask_apscheduler {e}")
 
     rdb = None
     try:
@@ -87,34 +112,15 @@ def apscheduler_start(app_: Flask, scheduler, is_warkup: bool = True, warkup_fun
                 if is_warkup and callable(warkup_func):
                     scheduler.add_job("warkup", warkup_func, trigger="interval", seconds=warkup_seconds,
                                       replace_existing=True)
+                atexit.register(remove_apscheduler)
+                aelog.info(f"当前进程{os.getpid()}启动定时任务成功,设置redis[2]任务标记[apscheduler],"
+                           f"任务函数为{warkup_func.__name__}.")
             else:
                 scheduler._scheduler.state = 2
+                aelog.info(f"其他进程已经启动了定时任务,当前进程{os.getpid()}不再加载定时任务.")
     finally:
         if rdb:
             rdb.connection_pool.disconnect()
-
-    @atexit.register
-    def remove_apscheduler():
-        """
-        移除redis中保存的标记
-        Args:
-
-        Returns:
-
-        """
-        rdb_ = None
-        try:
-            rdb_ = redis.StrictRedis(
-                host=app_.config["ECLIENTS_REDIS_HOST"], port=app_.config["ECLIENTS_REDIS_PORT"],
-                db=2, password=app_.config["ECLIENTS_REDIS_PASSWD"], decode_responses=True)
-        except RedisError as ex:
-            aelog.exception(ex)
-        else:
-            with ignore_error():
-                rdb_.delete("apscheduler")
-        finally:
-            if rdb_:
-                rdb_.connection_pool.disconnect()
 
 
 def pool_submit(func: Callable, *args, task_name: str = "", **kwargs):
@@ -154,7 +160,7 @@ def gen_ident(ident_len: int = 8):
 
     """
     alphabet = f"{string.ascii_lowercase}{string.digits}"
-    ident = ''.join(secrets.choice(alphabet) for _ in range(ident_len))
+    ident = ''.join(secrets.choice(alphabet) for _ in range(ident_len - 1))
     return f"{secrets.choice(string.ascii_lowercase)}{ident}"
 
 
