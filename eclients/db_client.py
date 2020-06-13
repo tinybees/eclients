@@ -24,9 +24,28 @@ from .err_msg import mysql_msg
 from .exceptions import DBDuplicateKeyError, DBError, HttpError
 from .utils import gen_class_name, verify_message
 
-__all__ = ("DBClient",)
+__all__ = ("DBClient", "DialectDriver")
 
 _lru_cache = LRU()
+
+
+class DialectDriver(object):
+    """
+    数据库方言驱动
+    """
+    #  postgresql
+    pg_default = "postgresql+psycopg2"  # default
+    pg_pg8000 = "postgresql+pg8000"
+    # mysql
+    mysql_default = "mysql+mysqldb"  # default
+    mysql_pymysql = "mysql+pymysql"
+    # oracle
+    oracle_cx = "oracle+cx_oracle"  # default
+    # SQL Server
+    mssql_default = "mssql+pyodbc"  # default
+    mssql_pymssql = "mssql+pymssql"
+    # SQLite
+    sqlite = "sqlite:///"
 
 
 class DBClient(SQLAlchemy):
@@ -36,7 +55,8 @@ class DBClient(SQLAlchemy):
 
     def __init__(self, app=None, *, username: str = "root", passwd: str = None, host: str = "127.0.0.1",
                  port: int = 3306, dbname: str = None, pool_size: int = 50, is_binds: bool = False,
-                 bind_name: str = "project_id", binds: str = None, **kwargs):
+                 bind_name: str = "project_id", binds: str = None, dialect: str = DialectDriver.mysql_pymysql,
+                 **kwargs):
         """
         DB同步操作指南
         Args:
@@ -51,6 +71,7 @@ class DBClient(SQLAlchemy):
             bind_name: Binding key identifier,get from request,default project_id
             binds : Binds corresponds to  SQLALCHEMY_BINDS
             bind_func: Get the implementation logic of the bound value
+            dialect: sqlalchemy默认的Dialect驱动
             kwargs: 其他参数 eg: charset,binary_prefix,pool_recycle
         """
         self.app_ = app
@@ -70,6 +91,7 @@ class DBClient(SQLAlchemy):
         self.use_zh = kwargs.get("use_zh", True)
         self.pool_recycle = kwargs.get("pool_recycle", 3600)
         self.pool_recycle = self.pool_recycle if isinstance(self.pool_recycle, int) else 3600
+        self.dialect = dialect
         self.msg_zh = None
         self._sessions = {}  # 主要保存其他session
 
@@ -119,8 +141,9 @@ class DBClient(SQLAlchemy):
         self.message = verify_message(mysql_msg, message)
         self.msg_zh = "msg_zh" if use_zh else "msg_en"
 
-        app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://{}:{}@{}:{}/{}?charset={}&binary_prefix={}".format(
-            self.username, self.passwd, self.host, self.port, self.dbname, self.charset, self.binary_prefix)
+        app.config['SQLALCHEMY_DATABASE_URI'] = "{}://{}:{}@{}:{}/{}?charset={}&binary_prefix={}".format(
+            self.dialect, self.username, self.passwd, self.host, self.port, self.dbname, self.charset,
+            self.binary_prefix)
         app.config['SQLALCHEMY_BINDS'] = self.binds
         app.config['SQLALCHEMY_POOL_SIZE'] = self.pool_size
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
