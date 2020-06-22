@@ -55,8 +55,7 @@ class DBClient(SQLAlchemy):
 
     def __init__(self, app=None, *, username: str = "root", passwd: str = None, host: str = "127.0.0.1",
                  port: int = 3306, dbname: str = None, pool_size: int = 50, is_binds: bool = False,
-                 bind_name: str = "project_id", binds: str = None, dialect: str = DialectDriver.mysql_pymysql,
-                 **kwargs):
+                 binds: str = None, dialect: str = DialectDriver.mysql_pymysql, **kwargs):
         """
         DB同步操作指南
         Args:
@@ -68,7 +67,6 @@ class DBClient(SQLAlchemy):
             passwd: mysql password
             pool_size: mysql pool size
             is_binds: Whether to bind same table different database, default false
-            bind_name: Binding key identifier,get from request,default project_id
             binds : Binds corresponds to  SQLALCHEMY_BINDS
             bind_func: Get the implementation logic of the bound value
             dialect: sqlalchemy默认的Dialect驱动
@@ -82,7 +80,6 @@ class DBClient(SQLAlchemy):
         self.dbname = dbname
         self.pool_size = pool_size
         self.is_binds = is_binds
-        self.bind_name = bind_name
         self.binds = binds or {}
         self.charset = kwargs.get("charset", "utf8mb4")
         self.binary_prefix = kwargs.get("binary_prefix", True)
@@ -100,8 +97,7 @@ class DBClient(SQLAlchemy):
         super().__init__(app, query_class=CustomBaseQuery)
 
     def init_app(self, app, username: str = None, passwd: str = None, host: str = None, port: int = None,
-                 dbname: str = None, pool_size: int = None, is_binds: bool = None, bind_name: str = "",
-                 binds: str = None, **kwargs):
+                 dbname: str = None, pool_size: int = None, is_binds: bool = None, binds: str = None, **kwargs):
         """
         mysql 实例初始化
 
@@ -114,7 +110,6 @@ class DBClient(SQLAlchemy):
             passwd: mysql password
             pool_size: mysql pool size
             is_binds: Whether to bind same table different database, default false
-            bind_name: Binding key identifier,get from request
             binds : Binds corresponds to  SQLALCHEMY_BINDS
             kwargs: 其他参数 eg: charset,binary_prefix,pool_recycle
         Returns:
@@ -131,7 +126,6 @@ class DBClient(SQLAlchemy):
         message = kwargs.get("message") or app.config.get("ECLIENTS_MYSQL_MESSAGE") or self.message
         use_zh = kwargs.get("use_zh") or app.config.get("ECLIENTS_MYSQL_MSGZH") or self.use_zh
         self.is_binds = is_binds or app.config.get("ECLIENTS_IS_BINDS") or self.is_binds
-        self.bind_name = bind_name or app.config.get("ECLIENTS_BIND_NAME") or self.bind_name
         self.bind_func = kwargs.get("bind_func") or self.bind_func
         self.pool_recycle = kwargs.get("pool_recycle") or app.config.get("ECLIENTS_POOL_RECYCLE") or self.pool_recycle
         self.charset = kwargs.get("charset") or self.charset
@@ -149,30 +143,11 @@ class DBClient(SQLAlchemy):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         app.config['SQLALCHEMY_POOL_RECYCLE'] = self.pool_recycle
 
-        def set_bind_key():
-            """
-            如果绑定多个数据库标记为真，则初始化engine之前需要设置g的绑定数据库键，防止查询的是默认的SQLALCHEMY_DATABASE_URI
-
-            这部分的具体逻辑交给具体的业务，通过实例的bind_func来实现
-            Args:
-
-            Returns:
-
-            """
-            if self.is_binds:
-                if self.bind_func and callable(self.bind_func):
-                    self.bind_func()
-                else:
-                    # 默认实现逻辑
-                    # 从header和args分别获取bind_name的值，优先获取header
-                    bind_value = request.headers.get(self.bind_name) or request.args.get(self.bind_name) or None
-                    if bind_value and bind_value not in app.config['SQLALCHEMY_BINDS']:
-                        app.config['SQLALCHEMY_BINDS'][bind_value] = app.config[
-                            'SQLALCHEMY_DATABASE_URI'].replace(self.dbname, f"{self.dbname}_{bind_value}")
-                    setattr(g, "bind_key", bind_value)
-
-        # Registers a function to be first run before the first request
-        app.before_first_request_funcs.insert(0, set_bind_key)
+        # 如果绑定多个数据库标记为真，则初始化engine之前需要设置g的绑定数据库键，
+        # 防止查询的是默认的SQLALCHEMY_DATABASE_URI
+        # 这部分的具体逻辑交给具体的业务，通过实例的bind_func来实现
+        if self.is_binds and self.bind_func and callable(self.bind_func):
+            app.before_first_request_funcs.insert(0, self.bind_func)
         super().init_app(app)
 
         @app.teardown_appcontext
@@ -214,18 +189,30 @@ class DBClient(SQLAlchemy):
         Returns:
 
         """
-        if bind_key and bind_key not in self.app_.config['SQLALCHEMY_BINDS']:
-            self.app_.config['SQLALCHEMY_BINDS'][bind_key] = self.app_.config[
-                'SQLALCHEMY_DATABASE_URI'].replace(self.dbname, f"{self.dbname}_{bind_key}")
+        if bind_key not in self.app_.config['SQLALCHEMY_BINDS']:
+            raise ValueError(f"{bind_key} not in SQLALCHEMY_BINDS, please config it.")
 
-        exist_bind_key = getattr(g, "bind_key", None)  # 获取已有的bind_key
-        g.bind_key = bind_key
+        g.bind_key = bind_key  # 设置要切换的bind
         if bind_key not in self._sessions:
             self._sessions[bind_key] = self.create_scoped_session(session_options)
-        session = self._sessions[bind_key]()
-        g.bind_key = exist_bind_key  # bind_key 还原
 
-        return session
+        return self._sessions[bind_key]()
+
+    @contextmanager
+    def gsession(self, bind_key: str, session_options: Dict = None) -> Session:
+        """
+        增加session的上下文自动关闭
+        Args:
+            bind_key: session需要绑定的ECLIENTS_BINDS中的键
+            session_options: create_session 所需要的字典或者关键字参数
+        Returns:
+
+        """
+        session: Session = self.gen_session(bind_key, session_options)
+        try:
+            yield session
+        finally:
+            session.close()
 
     def save(self, model_obj, session: Session = None) -> NoReturn:
         """

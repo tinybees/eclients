@@ -1,5 +1,12 @@
 ## aeclients Changelog
 
+###[1.0.2] - 2020-6-22
+
+#### Added 
+- 1.去掉启动时自动设置SQLALCHEMY_BINDS的功能,如果没有设置则抛出异常.
+- 2.去掉创建session时自动设置SQLALCHEMY_BINDS的功能,如果没有设置则抛出异常.
+- 3.增加上下文创建session的功能.
+
 ###[1.0.1] - 2020-6-14
 
 #### Added 
