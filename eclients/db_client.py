@@ -192,9 +192,6 @@ class DBClient(SQLAlchemy):
         if bind_key not in self.app_.config['SQLALCHEMY_BINDS']:
             raise ValueError(f"{bind_key} not in SQLALCHEMY_BINDS, please config it.")
 
-        if getattr(g, "bind_key", None) is None:
-            raise ValueError(f"{bind_key} not in g, please set it.")
-
         try:
             g.bind_key = bind_key  # 设置要切换的bind
             if bind_key not in self._sessions:
