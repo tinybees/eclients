@@ -192,11 +192,18 @@ class DBClient(SQLAlchemy):
         if bind_key not in self.app_.config['SQLALCHEMY_BINDS']:
             raise ValueError(f"{bind_key} not in SQLALCHEMY_BINDS, please config it.")
 
-        g.bind_key = bind_key  # 设置要切换的bind
-        if bind_key not in self._sessions:
-            self._sessions[bind_key] = self.create_scoped_session(session_options)
+        if getattr(g, "bind_key", None) is None:
+            raise ValueError(f"{bind_key} not in g, please set it.")
 
-        return self._sessions[bind_key]()
+        try:
+            g.bind_key = bind_key  # 设置要切换的bind
+            if bind_key not in self._sessions:
+                self._sessions[bind_key] = self.create_scoped_session(session_options)
+            session = self._sessions[bind_key]()
+        finally:
+            g.bind_key = None
+
+        return session
 
     @contextmanager
     def gsession(self, bind_key: str, session_options: Dict = None) -> Session:
