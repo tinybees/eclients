@@ -92,7 +92,7 @@ class DBClient(SQLAlchemy):
         self.pool_recycle = self.pool_recycle if isinstance(self.pool_recycle, int) else 3600
         self.dialect = dialect
         self.msg_zh = None
-        self._sessions: Dict[str, scoped_session] = {}  # 主要保存其他scope session
+        self.scoped_sessions: Dict[str, scoped_session] = {}  # 主要保存其他scope session
 
         # 这里要用重写的BaseQuery, 根据BaseQuery的规则,Model中的query_class也需要重新指定为子类model,
         # 但是从Model的初始化看,如果Model的query_class为None的话还是会设置为和Query一致，符合要求
@@ -154,7 +154,7 @@ class DBClient(SQLAlchemy):
 
         @app.teardown_appcontext
         def shutdown_other_session(response_or_exc):
-            for _, session_ in self._sessions.items():
+            for _, session_ in self.scoped_sessions.items():
                 session_.remove()
             return response_or_exc
 
@@ -200,8 +200,8 @@ class DBClient(SQLAlchemy):
                 else:
                     bind_key = getattr(session, "bind_key", "")
                     if bind_key:
-                        self._sessions[bind_key].remove()
-                        session = self._sessions[bind_key]()
+                        self.scoped_sessions[bind_key].remove()
+                        session = self.scoped_sessions[bind_key]()
                     else:
                         raise FuncArgsError(f"session中缺少bind_key变量") from err
             else:
@@ -227,9 +227,9 @@ class DBClient(SQLAlchemy):
         src_bind_key = getattr(g, "bind_key", None)
         try:
             g.bind_key = bind_key  # 设置要切换的bind
-            if bind_key not in self._sessions:
-                self._sessions[bind_key] = self.create_scoped_session(session_options)
-            session = self._sessions[bind_key]()
+            if bind_key not in self.scoped_sessions:
+                self.scoped_sessions[bind_key] = self.create_scoped_session(session_options)
+            session = self.scoped_sessions[bind_key]()
             session.bind_key = bind_key  # 设置bind key
             session = self.ping_session(session)  # 校验重连,保证可用
         finally:
