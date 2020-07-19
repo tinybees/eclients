@@ -14,14 +14,16 @@ import aelog
 from boltons.cacheutils import LRU
 from flask import abort, g, request
 from flask_sqlalchemy import BaseQuery, Pagination, SQLAlchemy
+from sqlalchemy import exc as sqlalchemy_err, text
 from sqlalchemy.engine.result import ResultProxy, RowProxy
 from sqlalchemy.exc import DatabaseError, IntegrityError
 from sqlalchemy.orm import Query, Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.orm.scoping import scoped_session
 from sqlalchemy.sql.schema import Table
 
 from .err_msg import mysql_msg
-from .exceptions import DBDuplicateKeyError, DBError, HttpError
+from .exceptions import DBDuplicateKeyError, DBError, FuncArgsError, HttpError
 from .utils import gen_class_name, verify_message
 
 __all__ = ("DBClient", "DialectDriver")
@@ -90,7 +92,7 @@ class DBClient(SQLAlchemy):
         self.pool_recycle = self.pool_recycle if isinstance(self.pool_recycle, int) else 3600
         self.dialect = dialect
         self.msg_zh = None
-        self._sessions = {}  # 主要保存其他session
+        self._sessions: Dict[str, scoped_session] = {}  # 主要保存其他scope session
 
         # 这里要用重写的BaseQuery, 根据BaseQuery的规则,Model中的query_class也需要重新指定为子类model,
         # 但是从Model的初始化看,如果Model的query_class为None的话还是会设置为和Query一致，符合要求
@@ -178,6 +180,35 @@ class DBClient(SQLAlchemy):
             _lru_cache[bind_name] = super().get_binds(app)
         return _lru_cache[bind_name]
 
+    def ping_session(self, session: Union[Session, scoped_session] = None, reconnect=True
+                     ) -> Union[scoped_session, Session]:
+        """
+        session探测
+        Args:
+            session: session
+            reconnect: 是否重连
+        Returns:
+            如果通则返回true,否则false
+        """
+        session = session if session is not None else self.session
+        try:
+            session.execute(text("SELECT 1")).first()
+        except sqlalchemy_err.OperationalError as err:
+            if reconnect:
+                if isinstance(session, scoped_session):
+                    session.remove()
+                else:
+                    bind_key = getattr(session, "bind_key", "")
+                    if bind_key:
+                        self._sessions[bind_key].remove()
+                        session = self._sessions[bind_key]()
+                    else:
+                        raise FuncArgsError(f"session中缺少bind_key变量") from err
+            else:
+                raise err
+        # 返回重建后的session
+        return session
+
     def gen_session(self, bind_key: str, session_options: Dict = None) -> Session:
         """
         创建或者获取指定的session,这里是session非sessionmaker
@@ -199,6 +230,8 @@ class DBClient(SQLAlchemy):
             if bind_key not in self._sessions:
                 self._sessions[bind_key] = self.create_scoped_session(session_options)
             session = self._sessions[bind_key]()
+            session.bind_key = bind_key  # 设置bind key
+            session = self.ping_session(session)  # 校验重连,保证可用
         finally:
             g.bind_key = src_bind_key  # 还原
 

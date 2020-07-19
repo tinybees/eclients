@@ -1,5 +1,13 @@
 ## aeclients Changelog
 
+###[1.0.4] - 2020-7-19
+
+#### Added 
+- 1.新增session的ping功能,探测session是否还连通
+- 2.新增生成session后探测是否还连通,如果不连通则清理,保证生成的session是可用的
+- 3.redis中新增3天,7天,15天和30天过期变量
+
+
 ###[1.0.3] - 2020-7-11
 
 #### Added 

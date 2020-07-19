@@ -20,11 +20,16 @@ from redis import RedisError
 from .exceptions import RedisClientError
 from .utils import ignore_error
 
-__all__ = ("Session", "RedisClient")
+__all__ = ("Session", "RedisClient", "LONG_EXPIRED", "EXPIRED", "SESSION_EXPIRED", "DAY3_EXPIRED", "DAY7_EXPIRED",
+           "DAY15_EXPIRED", "DAY30_EXPIRED")
 
-LONG_EXPIRED: int = 24 * 60 * 60  # 最长过期时间
-EXPIRED: int = 12 * 60 * 60  # 通用过期时间
 SESSION_EXPIRED: int = 30 * 60  # session过期时间
+EXPIRED: int = 12 * 60 * 60  # 通用过期时间
+LONG_EXPIRED: int = 24 * 60 * 60  # 最长过期时间
+DAY3_EXPIRED: int = 3 * LONG_EXPIRED
+DAY7_EXPIRED: int = 7 * LONG_EXPIRED
+DAY15_EXPIRED: int = 15 * LONG_EXPIRED
+DAY30_EXPIRED: int = 30 * LONG_EXPIRED
 
 
 class Session(object):
@@ -177,7 +182,7 @@ class RedisClient(object):
 
         """
         session_data = self.response_dumps(dump_responses, session)
-        
+
         try:
             if not self.redis_db.hmset(session_data["session_id"], session_data):
                 raise RedisClientError("save session failed, session_id={}".format(session_data["session_id"]))
