@@ -202,6 +202,7 @@ class DBClient(SQLAlchemy):
                     if bind_key:
                         self.scoped_sessions[bind_key].remove()
                         session = self.scoped_sessions[bind_key]()
+                        session.bind_key = bind_key  # 设置bind key
                     else:
                         raise FuncArgsError(f"session中缺少bind_key变量") from err
             else:
