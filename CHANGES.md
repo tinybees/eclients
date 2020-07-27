@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.6] - 2020-7-27
+
+#### Changed 
+- 1.优化ping session是session或者scope session的写法
+
 ###[1.0.5] - 2020-7-23
 
 #### Changed 

@@ -190,7 +190,7 @@ class DBClient(SQLAlchemy):
         Returns:
             如果通则返回true,否则false
         """
-        session = session if session is not None else self.session
+        session = session if session else self.session
         try:
             session.execute(text("SELECT 1")).first()
         except sqlalchemy_err.OperationalError as err:
