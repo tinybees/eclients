@@ -1,9 +1,10 @@
 ## aeclients Changelog
 
-###[1.0.6] - 2020-7-27
+###[1.0.6] - 2020-7-28
 
 #### Changed 
 - 1.优化ping session是session或者scope session的写法
+- 2.解决如果session过期ping后session会变为默认的session的问题
 
 ###[1.0.5] - 2020-7-23
 

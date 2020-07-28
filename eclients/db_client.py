@@ -195,16 +195,17 @@ class DBClient(SQLAlchemy):
             session.execute(text("SELECT 1")).first()
         except sqlalchemy_err.OperationalError as err:
             if reconnect:
-                if isinstance(session, scoped_session):
-                    session.remove()
-                else:
+                if isinstance(session, Session):
                     bind_key = getattr(session, "bind_key", "")
                     if bind_key:
-                        self.scoped_sessions[bind_key].remove()
-                        session = self.scoped_sessions[bind_key]()
-                        session.bind_key = bind_key  # 设置bind key
+                        with self.set_bindkey(bind_key):
+                            self.scoped_sessions[bind_key].remove()
+                            session = self.scoped_sessions[bind_key]()
+                            session.bind_key = bind_key  # 设置bind key
                     else:
                         raise FuncArgsError(f"session中缺少bind_key变量") from err
+                else:
+                    session.remove()
             else:
                 raise err
         # 返回重建后的session
@@ -224,19 +225,31 @@ class DBClient(SQLAlchemy):
         if bind_key not in self.app_.config['SQLALCHEMY_BINDS']:
             raise ValueError(f"{bind_key} not in SQLALCHEMY_BINDS, please config it.")
 
-        # 为了保证不改变原始的默认session,这里创建新的session后需要还原
-        src_bind_key = getattr(g, "bind_key", None)
-        try:
-            g.bind_key = bind_key  # 设置要切换的bind
+        with self.set_bindkey(bind_key):
             if bind_key not in self.scoped_sessions:
                 self.scoped_sessions[bind_key] = self.create_scoped_session(session_options)
             session = self.scoped_sessions[bind_key]()
             session.bind_key = bind_key  # 设置bind key
             session = self.ping_session(session)  # 校验重连,保证可用
-        finally:
-            g.bind_key = src_bind_key  # 还原
 
         return session
+
+    @contextmanager
+    def set_bindkey(self, bind_key):
+        """
+        更新bind key的上下文,用于session的创建和ping功能
+        Args:
+            bind_key
+        Returns:
+
+        """
+        # 为了保证不改变原始的默认session,这里创建新的session后需要还原
+        src_bind_key = getattr(g, "bind_key", None)
+        try:
+            g.bind_key = bind_key  # 设置要切换的bind
+            yield
+        finally:
+            g.bind_key = src_bind_key  # 还原
 
     @contextmanager
     def gsession(self, bind_key: str, session_options: Dict = None) -> Session:
