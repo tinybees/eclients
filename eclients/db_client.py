@@ -183,7 +183,7 @@ class DBClient(SQLAlchemy):
     def ping_session(self, session: Union[Session, scoped_session] = None, reconnect=True
                      ) -> Union[scoped_session, Session]:
         """
-        session探测,可以弹出利用gen_session生成的session也可以探测默认的scope_session
+        session探测,可以探测利用gen_session生成的session也可以探测默认的scope_session
         Args:
             session: session
             reconnect: 是否重连
