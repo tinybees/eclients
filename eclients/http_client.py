@@ -99,17 +99,8 @@ class HttpClient(Singleton):
 
         self.message = verify_message(http_msg, message)
         self.msg_zh = "msg_zh" if use_zh else "msg_en"
-
-        @app.before_first_request
-        def open_connection():
-            """
-
-            Args:
-
-            Returns:
-
-            """
-            self.session = sync_requests.Session()
+        # 初始化session
+        self.session = sync_requests.Session()
 
         @atexit.register
         def close_connection():
@@ -140,6 +131,7 @@ class HttpClient(Singleton):
         use_zh = use_zh or self.use_zh
         self.message = verify_message(http_msg, message or self.message)
         self.msg_zh = "msg_zh" if use_zh else "msg_en"
+        # 初始化session
         self.session = sync_requests.Session()
 
         @atexit.register

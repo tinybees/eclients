@@ -1,5 +1,10 @@
 ## aeclients Changelog
 
+###[1.0.7] - 2020-9-18
+
+#### Changed 
+- 1.更改redis,http,mongo初始化的时机,改为调用后即初始化
+
 ###[1.0.6] - 2020-7-28
 
 #### Changed 

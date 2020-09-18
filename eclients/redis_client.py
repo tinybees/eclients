@@ -39,19 +39,33 @@ class Session(object):
 
     """
 
-    def __init__(self, account_id: str, *, session_id: str = None, org_id: str = None, role_id: str = None,
-                 permission_id: str = None, **kwargs):
+    def __init__(self, account_id: str, *,
+                 session_id: str = None,
+                 org_id: str = None,
+                 role_id: str = None,
+                 menu_id: str = None,
+                 static_route_id: str = None,
+                 dynamic_route_id: str = None,
+                 **kwargs):
         self.account_id = account_id  # 账户ID
         self.session_id = secrets.token_urlsafe() if not session_id else session_id  # session ID
         self.org_id = org_id or uuid.uuid4().hex  # 账户的组织结构在redis中的ID
         self.role_id = role_id or uuid.uuid4().hex  # 账户的角色在redis中的ID
-        self.permission_id = permission_id or uuid.uuid4().hex  # 账户的权限在redis中的ID
-        self.static_permission_id = uuid.uuid4().hex  # 账户的静态权限在redis中的ID
-        self.dynamic_permission_id = uuid.uuid4().hex  # 账户的动态权限在redis中的ID
-        self.page_id = uuid.uuid4().hex  # 账户的页面权限在redis中的ID
-        self.page_menu_id = uuid.uuid4().hex  # 账户的页面菜单权限在redis中的ID
+        self.menu_id = menu_id or uuid.uuid4().hex  # 账户的页面菜单权限在redis中的ID
+        self.static_route_id = static_route_id or uuid.uuid4().hex  # 账户的静态权限在redis中的ID
+        self.dynamic_route_id = dynamic_route_id or uuid.uuid4().hex  # 账户的动态权限在redis中的ID
         for k, v in kwargs.items():
             setattr(self, k, v)
+
+    def to_dict(self, ) -> Dict:
+        """
+
+        Args:
+
+        Returns:
+
+        """
+        return dict(vars(self))
 
 
 class RedisClient(object):
@@ -105,20 +119,8 @@ class RedisClient(object):
         pool_size = pool_size or app.config.get("ECLIENTS_REDIS_POOL_SIZE", None) or self.pool_size
 
         passwd = passwd if passwd is None else str(passwd)
-
-        @app.before_first_request
-        def open_connection():
-            """
-
-            Args:
-
-            Returns:
-
-            """
-            # 返回值都做了解码，应用层不需要再decode
-            self.pool = redis.ConnectionPool(host=host, port=port, db=dbname, password=passwd, decode_responses=True,
-                                             max_connections=pool_size)
-            self.redis_db = redis.StrictRedis(connection_pool=self.pool, decode_responses=True)
+        # 初始化连接
+        self.open_connection(host, port, passwd, dbname, pool_size)
 
         @atexit.register
         def close_connection():
@@ -153,10 +155,8 @@ class RedisClient(object):
         pool_size = pool_size or self.pool_size
 
         passwd = passwd if passwd is None else str(passwd)
-        # 返回值都做了解码，应用层不需要再decode
-        self.pool = redis.ConnectionPool(host=host, port=port, db=dbname, password=passwd, decode_responses=True,
-                                         max_connections=pool_size)
-        self.redis_db = redis.StrictRedis(connection_pool=self.pool, decode_responses=True)
+        # 初始化连接
+        self.open_connection(host, port, passwd, dbname, pool_size)
 
         @atexit.register
         def close_connection():
@@ -170,6 +170,23 @@ class RedisClient(object):
             self.redis_db = None
             if self.pool:
                 self.pool.disconnect()
+
+    def open_connection(self, host: str, port: int, passwd: str, dbname: str, pool_size: int):
+        """
+        初始化连接
+        Args:
+            host: host
+            port: port
+            passwd: passwd
+            dbname: database name
+            pool_size: pool size
+        Returns:
+
+        """
+        # 返回值都做了解码，应用层不需要再decode
+        self.pool = redis.ConnectionPool(host=host, port=port, db=dbname, password=passwd, decode_responses=True,
+                                         max_connections=pool_size)
+        self.redis_db = redis.StrictRedis(connection_pool=self.pool, decode_responses=True)
 
     def save_session(self, session: Session, dump_responses: bool = False, ex: int = SESSION_EXPIRED) -> str:
         """

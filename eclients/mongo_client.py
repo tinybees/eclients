@@ -60,6 +60,7 @@ class MongoClient(object):
             self.init_app(app, username=self.username, passwd=self.passwd, host=self.host, port=self.port,
                           dbname=self.dbname, pool_size=self.pool_size, **kwargs)
 
+    # noinspection DuplicatedCode
     def init_app(self, app, *, username: str = None, passwd: str = None, host: str = None, port: int = None,
                  dbname: str = None, pool_size: int = None, **kwargs):
         """
@@ -86,28 +87,8 @@ class MongoClient(object):
         self.message = verify_message(mongo_msg, message)
         self.msg_zh = "msg_zh" if use_zh else "msg_en"
 
-        @app.before_first_request
-        def open_connection():
-            """
-
-            Args:
-
-            Returns:
-
-            """
-
-            try:
-                self.client = MongodbClient(host, port, maxPoolSize=pool_size, username=username, password=passwd)
-                self.db = self.client.get_database(name=dbname)
-            except ConnectionFailure as e:
-                aelog.exception(f"Mongo connection failed host={host} port={port} error:{str(e)}")
-                raise MongoError(f"Mongo connection failed host={host} port={port} error:{str(e)}")
-            except InvalidName as e:
-                aelog.exception(f"Invalid mongo db name {dbname} {str(e)}")
-                raise MongoInvalidNameError(f"Invalid mongo db name {dbname} {str(e)}")
-            except PyMongoError as err:
-                aelog.exception(f"Mongo DB init failed! error: {str(err)}")
-                raise MongoError("Mongo DB init failed!") from err
+        # 初始化连接
+        self.open_connection(host, port, username, passwd, dbname, pool_size)
 
         @atexit.register
         def close_connection():
@@ -121,6 +102,7 @@ class MongoClient(object):
             if self.client:
                 self.client.close()
 
+    # noinspection DuplicatedCode
     def init_engine(self, *, username: str = None, passwd: str = None, host: str = None, port: int = None,
                     dbname: str = None, pool_size: int = None, **kwargs):
         """
@@ -145,6 +127,34 @@ class MongoClient(object):
         passwd = passwd if passwd is None else str(passwd)
         self.message = verify_message(mongo_msg, message)
         self.msg_zh = "msg_zh" if use_zh else "msg_en"
+        # 初始化连接
+        self.open_connection(host, port, username, passwd, dbname, pool_size)
+
+        @atexit.register
+        def close_connection():
+            """
+            释放mongo连接池所有连接
+            Args:
+
+            Returns:
+
+            """
+            if self.client:
+                self.client.close()
+
+    def open_connection(self, host: str, port: int, username: str, passwd: str, dbname: str, pool_size: int):
+        """
+        初始化连接
+        Args:
+            host: host
+            port: port
+            username: username
+            passwd: passwd
+            dbname: database name
+            pool_size: pool size
+        Returns:
+
+        """
 
         try:
             self.client = MongodbClient(host, port, maxPoolSize=pool_size, username=username, password=passwd)
@@ -158,18 +168,6 @@ class MongoClient(object):
         except PyMongoError as err:
             aelog.exception(f"Mongo DB init failed! error: {str(err)}")
             raise MongoError("Mongo DB init failed!") from err
-
-        @atexit.register
-        def close_connection():
-            """
-            释放mongo连接池所有连接
-            Args:
-
-            Returns:
-
-            """
-            if self.client:
-                self.client.close()
 
     def _insert_document(self, name: str, document: Union[List[Dict], Dict], insert_one: bool = True
                          ) -> Union[Tuple[str], str]:
