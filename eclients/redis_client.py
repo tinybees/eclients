@@ -23,13 +23,13 @@ from .utils import ignore_error
 __all__ = ("Session", "RedisClient", "LONG_EXPIRED", "EXPIRED", "SESSION_EXPIRED", "DAY3_EXPIRED", "DAY7_EXPIRED",
            "DAY15_EXPIRED", "DAY30_EXPIRED")
 
-SESSION_EXPIRED: int = 30 * 60  # session过期时间
-EXPIRED: int = 12 * 60 * 60  # 通用过期时间
+SESSION_EXPIRED: int = 60 * 60  # session过期时间
 LONG_EXPIRED: int = 24 * 60 * 60  # 最长过期时间
 DAY3_EXPIRED: int = 3 * LONG_EXPIRED
 DAY7_EXPIRED: int = 7 * LONG_EXPIRED
 DAY15_EXPIRED: int = 15 * LONG_EXPIRED
 DAY30_EXPIRED: int = 30 * LONG_EXPIRED
+EXPIRED: int = 15 * LONG_EXPIRED  # 通用过期时间
 
 
 class Session(object):
