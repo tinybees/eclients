@@ -6,6 +6,7 @@
 @software: PyCharm
 @time: 18-12-25 下午4:58
 """
+import threading
 from collections import MutableMapping, MutableSequence
 from contextlib import contextmanager
 from typing import Dict, List, NoReturn, Union
@@ -93,6 +94,7 @@ class DBClient(SQLAlchemy):
         self.dialect = dialect
         self.msg_zh = None
         self.scoped_sessions: Dict[str, scoped_session] = {}  # 主要保存其他scope session
+        self.registry = threading.local()  # 当前线程注册bind key
 
         # 这里要用重写的BaseQuery, 根据BaseQuery的规则,Model中的query_class也需要重新指定为子类model,
         # 但是从Model的初始化看,如果Model的query_class为None的话还是会设置为和Query一致，符合要求
@@ -154,8 +156,8 @@ class DBClient(SQLAlchemy):
 
         @app.teardown_appcontext
         def shutdown_other_session(response_or_exc):
-            for _, session_ in self.scoped_sessions.items():
-                session_.remove()
+            for bind_key in getattr(self.registry, "bind_keys", set()):
+                self.scoped_sessions[bind_key].remove()
             return response_or_exc
 
     def get_engine(self, app=None, bind=None):
@@ -231,6 +233,10 @@ class DBClient(SQLAlchemy):
             session = self.scoped_sessions[bind_key]()
             session.bind_key = bind_key  # 设置bind key
             session = self.ping_session(session)  # 校验重连,保证可用
+            # 加入当前线程bindkey,用于自动关闭处理
+            if hasattr(self.registry, "bind_keys") is False:
+                self.registry.bind_keys = set()
+            self.registry.bind_keys.add(bind_key)
 
         return session
 

@@ -1,4 +1,9 @@
-## aeclients Changelog
+## eclients Changelog
+
+###[1.0.10] - 2021-1-14
+
+#### Changed 
+- 修复flask alchemy应用结束自动关闭session会出错的问题
 
 ###[1.0.9] - 2020-10-14
 
