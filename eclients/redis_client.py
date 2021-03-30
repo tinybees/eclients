@@ -254,11 +254,9 @@ class RedisClient(object):
             session_data = self.get_session(session_id, cls_flag=False)
             exist_keys.append(session_data["org_id"])
             exist_keys.append(session_data["role_id"])
-            exist_keys.append(session_data["permission_id"])
+            exist_keys.append(session_data["menu_id"])
             exist_keys.append(session_data["static_permission_id"])
             exist_keys.append(session_data["dynamic_permission_id"])
-            exist_keys.append(session_data["page_id"])
-            exist_keys.append(session_data["page_menu_id"])
 
             with ignore_error():  # 删除已经存在的和账户相关的缓存key
                 self.delete_keys(exist_keys)
@@ -332,7 +330,7 @@ class RedisClient(object):
             if cls_flag:
                 return Session(session_data.pop('account_id'), session_id=session_data.pop('session_id'),
                                org_id=session_data.pop("org_id"), role_id=session_data.pop("role_id"),
-                               permission_id=session_data.pop("permission_id"), **session_data)
+                               **session_data)
             else:
                 return session_data
 

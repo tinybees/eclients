@@ -1,5 +1,11 @@
 ## eclients Changelog
 
+###[1.0.11] - 2021-3-30
+
+#### Changed 
+- 修复获取session时没有permission_id造成的错误
+
+
 ###[1.0.10] - 2021-1-14
 
 #### Changed 
