@@ -4,7 +4,7 @@
 
 #### Changed 
 - 修复获取session时没有permission_id造成的错误
-
+- 增加sqlalchemy版本限制
 
 ###[1.0.10] - 2021-1-14
 
