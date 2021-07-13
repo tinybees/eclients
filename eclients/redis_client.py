@@ -131,7 +131,6 @@ class RedisClient(object):
             Returns:
 
             """
-            self.redis_db = None
             if self.pool:
                 self.pool.disconnect()
 
@@ -167,7 +166,6 @@ class RedisClient(object):
             Returns:
 
             """
-            self.redis_db = None
             if self.pool:
                 self.pool.disconnect()
 
